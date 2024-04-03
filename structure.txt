@@ -1,0 +1,11 @@
+CHANGELOG.md
+README.md
+cs336_basics
+cs336_basics.egg-info
+cs336_spring2024_assignment1_basics.pdf
+pytest.ini
+requirements-test.txt
+requirements.txt
+setup.py
+structure.txt
+tests
