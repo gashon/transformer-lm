@@ -1,11 +1,52 @@
-CHANGELOG.md
-README.md
-cs336_basics
-cs336_basics.egg-info
-cs336_spring2024_assignment1_basics.pdf
-pytest.ini
-requirements-test.txt
-requirements.txt
-setup.py
-structure.txt
-tests
+
+tiny_stories_lm/
+├── data/
+│   ├── raw/
+│   │   └── tiny_stories.txt
+│   ├── processed/
+│   │   ├── train.json
+│   │   ├── val.json
+│   │   └── test.json
+│   └── tokenized/
+│       ├── train.txt
+│       ├── val.txt
+│       └── test.txt
+├── models/
+│   ├── tokenizer/
+│   │   ├── tokenizer.py
+│   │   └── vocab.json
+│   ├── transformer/
+│   │   ├── transformer.py
+│   │   ├── config.py
+│   │   └── utils.py
+│   └── checkpoints/
+│       ├── best_model.pt
+│       └── latest_model.pt
+├── training/
+│   ├── train.py
+│   ├── evaluate.py
+│   ├── dataset.py
+│   ├── loss.py
+│   └── optimizer.py
+├── generation/
+│   └── generate.py
+├── utils/
+│   ├── data_utils.py
+│   └── misc_utils.py
+├── scripts/
+│   ├── train_tokenizer.py
+│   ├── preprocess_data.py
+│   ├── train_model.py
+│   └── evaluate_model.py
+├── config/
+│   ├── tokenizer_config.json
+│   └── model_config.json
+├── logs/
+│   ├── tokenizer_training.log
+│   └── model_training.log
+├── notebooks/
+│   ├── data_exploration.ipynb
+│   └── model_evaluation.ipynb
+├── README.md
+├── requirements.txt
+└── setup.py
