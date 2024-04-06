@@ -17,19 +17,8 @@ def run_train_bpe(input_path, vocab_size, special_tokens):
 
     return vocab, merges
 
-#path = "tests/fixtures/corpus.en"
-#vocab_size = 500
-#special_tokens = ["<|endoftext|>"]
-
-#path = "data/raw/TinyStoriesV2-GPT4-train.txt"
-#vocab_size = 10000
-#special_tokens = ["<|endoftext|>"]
-
 path = "data/raw/owt_train.txt"
 vocab_size = 32000
 special_tokens = ["<|endoftext|>"]
-
-
-# MAKE SURE TO UPDATE SAVE_FILE PATHS
 
 run_train_bpe(path, vocab_size, special_tokens)

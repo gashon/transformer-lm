@@ -10,20 +10,20 @@ conda activate transformer_lm
 pip install -e .'[test]'
 ```
 
-1. Unit tests:
+### Unit tests:
 
 ```sh
 pytest
 ```
 
-2. Profiling:
+### Profiling:
 
 ```sh
-python3 -m memory_profiler profile/bpe.py
+python3 -m memory_profiler profile/bpe_owt.py
 ```
 
-or to submit a job to a cluster:
+or to submit a job to a slurm cluster:
 
 ```sh
-sbatch profile/bpe.sbatch
+sbatch profile/bpe_owt.sbatch
 ```
