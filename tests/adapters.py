@@ -7,6 +7,7 @@ from typing import IO, BinaryIO, Iterable, Optional, Type
 import numpy.typing as npt
 import torch
 
+from models.tokenizer.bpe_tokenizer import BPETokenizer 
 
 def run_positionwise_feedforward(
     d_model: int,
@@ -553,4 +554,8 @@ def run_train_bpe(
                 representing that <token1> was merged with <token2>.
                 Merges are ordered by order of creation.
     """
-    raise NotImplementedError
+    tokenizer = BPETokenizer(vocab_size, special_tokens)
+    vocab, merges = tokenizer.from_file(input_path)
+
+    return vocab, merges
+

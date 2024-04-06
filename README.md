@@ -5,8 +5,8 @@
 0. Set up a conda environment and install packages:
 
 ```sh
-conda create -n cs336_basics python=3.10 --yes
-conda activate cs336_basics
+conda create -n transformer_lm python=3.10 --yes
+conda activate transformer_lm
 pip install -e .'[test]'
 ```
 
