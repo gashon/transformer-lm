@@ -3,7 +3,7 @@
 #SBATCH --partition=batch
 #SBATCH --ntasks=1
 #SBATCH --mem-per-cpu=30G
-#SBATCH --time=00:35:00
+#SBATCH --time=1:05:00
 #SBATCH --output=profile_bpe_tiny_%j.out
 #SBATCH --error=profile_bpe_tiny_%j.err
 
