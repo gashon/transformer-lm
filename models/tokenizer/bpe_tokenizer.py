@@ -29,15 +29,12 @@ class BPETokenizer:
             for token in presubwords
         ]
 
-        token_indices: dict[bytes, list[int]] = collections.defaultdict(list)
-        for i, word in enumerate(subwords):
-            for token in word:
-                token_indices[token].append(i)
-
+        token_indices: dict[tuple[bytes, bytes], list[int]] = collections.defaultdict(list)
         byte_pairs: dict[tuple[bytes, bytes], int] = collections.defaultdict(int)
-        for word in subwords:
-            for i in range(len(word) - 1):
-                byte_pairs[(word[i], word[i+1])] += 1
+        for i, word in enumerate(subwords):
+            for j in range(len(word) - 1):
+                byte_pairs[(word[j], word[j+1])] += 1
+                token_indices[(word[j], word[j+1])].append(i)
 
         while len(self.vocab) < self.vocab_size and byte_pairs:
             # find the best pair
@@ -51,7 +48,7 @@ class BPETokenizer:
             new_token = best_pair[0] + best_pair[1]
             self.vocab.add_token(new_token)
 
-            indices = token_indices[best_pair[0]]
+            indices = token_indices[best_pair]
 
             for i in indices:
                 for j, (left, right) in enumerate(zip(subwords[i][:-1], subwords[i][1:])):
@@ -60,17 +57,16 @@ class BPETokenizer:
                             left_pair = (subwords[i][j-1], left)
                             byte_pairs[left_pair] -= 1
                             byte_pairs[(subwords[i][j-1], new_token)] += 1
+                            token_indices[(subwords[i][j-1], new_token)].append(i)
                         if j < len(subwords[i]) - 2:
                             right_pair = (right, subwords[i][j+2])
                             byte_pairs[right_pair] -= 1
                             byte_pairs[(new_token, subwords[i][j+2])] += 1
+                            token_indices[(new_token, subwords[i][j+2])].append(i)
                         subwords[i][j:j+2] = [new_token]
                         break
-
+            
             byte_pairs.pop(best_pair)
-
-
-            # add new token to token_indices
-            token_indices[new_token] = indices
+            token_indices.pop(best_pair)
 
         return (self.vocab.get_idx_to_token(), self.merges)
