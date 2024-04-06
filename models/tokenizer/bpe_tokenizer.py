@@ -1,4 +1,5 @@
 import os
+import json
 import regex as re
 import collections
 from models.tokenizer.vocab import Vocab
@@ -187,3 +188,37 @@ class BPETokenizer:
             byte_pairs[right_pair] -= 1
             byte_pairs[(new_token, subwords[i][j+2])] += 1
             token_indices[(new_token, subwords[i][j+2])].append(i)
+
+    def save_to_file(self, vocab_file: str, merges_file: str) -> None:
+        """
+        Save the vocabulary and merges to files for further inspection.
+
+        Args:
+            vocab_file: The path to the file where the vocabulary will be saved.
+            merges_file: The path to the file where the merges will be saved.
+        """
+        # Save vocabulary
+        with open(vocab_file, 'w', encoding='utf-8') as f:
+            vocab_data = {
+                'vocab_size': self.vocab_size,
+                'special_tokens': list(self.special_tokens),
+                'vocab': {}
+            }
+            for idx, token in self.vocab.get_idx_to_token().items():
+                try:
+                    decoded_token = token.decode('utf-8')
+                except UnicodeDecodeError:
+                    decoded_token = f'<byte_{token.hex()}>'
+                vocab_data['vocab'][idx] = decoded_token
+            json.dump(vocab_data, f, ensure_ascii=False, indent=2)
+
+        # Save merges
+        with open(merges_file, 'w', encoding='utf-8') as f:
+            merges_data = []
+            for merge in self.merges:
+                try:
+                    decoded_merge = (merge[0].decode('utf-8'), merge[1].decode('utf-8'))
+                except UnicodeDecodeError:
+                    decoded_merge = (f'<byte_{merge[0].hex()}>', f'<byte_{merge[1].hex()}>')
+                merges_data.append(decoded_merge)
+            json.dump(merges_data, f, ensure_ascii=False, indent=2)
