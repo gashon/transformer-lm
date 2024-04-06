@@ -4,8 +4,8 @@
 #SBATCH --ntasks=1
 #SBATCH --mem-per-cpu=30G
 #SBATCH --time=00:35:00
-#SBATCH --output=profile_bpe_%j.out
-#SBATCH --error=profile_bpe_%j.err
+#SBATCH --output=profile_bpe_tiny_%j.out
+#SBATCH --error=profile_bpe_tiny_%j.err
 
 source $(conda info --base)/etc/profile.d/conda.sh
 conda activate transformer_lm
