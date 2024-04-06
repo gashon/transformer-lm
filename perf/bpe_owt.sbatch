@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=profile_bpe
+#SBATCH --job-name=profile_bpe_owt
 #SBATCH --partition=batch
 #SBATCH --ntasks=1
 #SBATCH --mem-per-cpu=100G
