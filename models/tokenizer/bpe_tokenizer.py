@@ -54,25 +54,21 @@ class BPETokenizer:
             indices = token_indices[best_pair[0]]
 
             for i in indices:
-                j = 0
-                while j < len(subwords[i]) - 1:
-                    if subwords[i][j] == best_pair[0] and subwords[i][j+1] == best_pair[1]:
+                for j, (left, right) in enumerate(zip(subwords[i][:-1], subwords[i][1:])):
+                    if left == best_pair[0] and right == best_pair[1]:
                         if j > 0:
-                            left_pair = (subwords[i][j-1], subwords[i][j])
+                            left_pair = (subwords[i][j-1], left)
                             byte_pairs[left_pair] -= 1
-                            byte_pairs[(subwords[i][j-1], new_token)] = byte_pairs.get((subwords[i][j-1], new_token), 0) + 1
-
+                            byte_pairs[(subwords[i][j-1], new_token)] += 1
                         if j < len(subwords[i]) - 2:
-                            right_pair = (subwords[i][j+1], subwords[i][j+2])
+                            right_pair = (right, subwords[i][j+2])
                             byte_pairs[right_pair] -= 1
-                            byte_pairs[(new_token, subwords[i][j+2])] = byte_pairs.get((new_token, subwords[i][j+2]), 0) + 1
-
-                        subwords[i][j] = new_token
-                        del subwords[i][j+1]
-                    else:
-                        j += 1
+                            byte_pairs[(new_token, subwords[i][j+2])] += 1
+                        subwords[i][j:j+2] = [new_token]
+                        break
 
             byte_pairs.pop(best_pair)
+
 
             # add new token to token_indices
             token_indices[new_token] = indices
