@@ -15,3 +15,15 @@ pip install -e .'[test]'
 ```sh
 pytest
 ```
+
+2. Profiling:
+
+```sh
+python3 -m memory_profiler profile/bpe.py
+```
+
+or to submit a job to a cluster:
+
+```sh
+sbatch profile/bpe.sbatch
+```
