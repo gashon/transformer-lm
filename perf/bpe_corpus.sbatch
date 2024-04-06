@@ -9,4 +9,4 @@
 
 source $(conda info --base)/etc/profile.d/conda.sh
 conda activate transformer_lm
-python3 -m memory_profiler perf/bpe_tiny.py | tee data/log/output-tiny-$(date +%s).log
+python3 -m memory_profiler perf/bpe_corpus.py | tee data/log/output-corpus-$(date +%s).log
