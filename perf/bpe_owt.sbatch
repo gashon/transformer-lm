@@ -9,4 +9,4 @@
 
 source $(conda info --base)/etc/profile.d/conda.sh
 conda activate transformer_lm
-python3 -m memory_profiler bpe_owt.py | tee data/log/output-owt-$(date +%s).log
+python3 -m memory_profiler perf/bpe_owt.py | tee data/log/output-owt-$(date +%s).log
