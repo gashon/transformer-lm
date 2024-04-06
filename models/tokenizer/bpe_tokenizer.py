@@ -12,7 +12,7 @@ class BPETokenizer:
 
         # gpt-2 pre-tokenizer 
         # @see https://github.com/openai/tiktoken/pull/234
-        self.PAT = re.compile(r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""")
+        self.PAT = re.compile(r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""", re.UNICODE)
 
     def get_presubwords(self, text: str) -> list[str]:
         pre_subwords: list[str] = self.PAT.findall(text)
