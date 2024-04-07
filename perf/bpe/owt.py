@@ -1,7 +1,7 @@
 from perf.bpe.util import profile_train_bpe
 
 def profile_bpe_training():
-    path = "data/raw/owt_train.txt"
+    path = "/data/owt_train.txt"
     vocab_size = 32000
     special_tokens = ["<|endoftext|>"]
 

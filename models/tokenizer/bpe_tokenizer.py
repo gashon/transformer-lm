@@ -2,6 +2,7 @@ import os
 import json
 import regex as re
 import collections
+from memory_profiler import profile
 from models.tokenizer.vocab import Vocab
 
 class BPETokenizer:
@@ -47,42 +48,6 @@ class BPETokenizer:
             self._merge_best_pair(subwords, byte_pairs, token_indices, self.merges, self.vocab)
 
         return (self.vocab.get_idx_to_token(), self.merges)
-
-
-    def encode(self, text: str) -> list[int]:
-        """
-        Encode the input text into a list of token indices.
-
-        Args:
-            text: The input text to be encoded.
-
-        Returns:
-            A list of token indices.
-        """
-        presubwords = self._get_presubwords(text, self.PAT, self.special_tokens)
-        subwords = self._encode_presubwords(presubwords)
-        token_indices = []
-        for word in subwords:
-            for i in range(len(word)):
-                for j in range(len(self.merges)):
-                    if word[i:i+2] == list(self.merges[j]):
-                        word[i:i+2] = [self.merges[j][0] + self.merges[j][1]]
-                        break
-            token_indices.extend(self.vocab.get_token_to_idx()[token] for token in word)
-        return token_indices
-
-    def decode(self, token_indices: list[int]) -> str:
-        """
-        Decode a list of token indices into text.
-
-        Args:
-            token_indices: A list of token indices to be decoded.
-
-        Returns:
-            The decoded text.
-        """
-        tokens = [self.vocab.get_idx_to_token()[idx] for idx in token_indices]
-        return ''.join(token.decode('utf-8') for token in tokens)
 
     @staticmethod
     def _get_presubwords(text: str, pat: re.Pattern, special_tokens: set[str]) -> list[str]:

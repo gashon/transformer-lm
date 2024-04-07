@@ -1,6 +1,5 @@
 class Vocab:
     def __init__(self, special_tokens: list[str] = []) -> None:
-        self.token_to_idx: dict[bytes, int] = {} 
         self.idx_to_token: dict[int, bytes] = {}
 
         for token in special_tokens:
@@ -14,19 +13,14 @@ class Vocab:
 
     def __len__(self) -> int:
         return len(self.idx_to_token)
-
-    def __getitem__(self, token: bytes) -> int:
-        return self.token_to_idx.get(token, self.unk_idx)
-
-    def __contains__(self, token: bytes) -> bool:
-        return token in self.token_to_idx
     
-    def add_token(self, token: bytes) -> int:
-        if token not in self.token_to_idx:
-            self.token_to_idx[token] = len(self.idx_to_token)
-            self.idx_to_token[len(self.idx_to_token)] = token
+    def add_token(self, token: bytes) -> None:
+        if token in self.idx_to_token.values():
+            return
 
-        return self.token_to_idx[token]
+        idx = len(self.idx_to_token)
+        self.idx_to_token[idx] = token
+        return 
     
     def get_idx_to_token(self) -> dict[int, bytes]:
         return self.idx_to_token

@@ -1,7 +1,7 @@
 from perf.bpe.util import profile_train_bpe
 
 def profile_bpe_training():
-    path = "data/raw/TinyStoriesV2-GPT4-train.txt"
+    path = "/data/TinyStoriesV2-GPT4-train.txt"
     vocab_size = 10000
     special_tokens = ["<|endoftext|>"]
 
