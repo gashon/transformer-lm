@@ -1,4 +1,4 @@
-from perf.util import profile_train_bpe
+from perf.bpe.util import profile_train_bpe
 
 def profile_bpe_training():
     path = "tests/fixtures/corpus.en"

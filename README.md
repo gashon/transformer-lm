@@ -19,11 +19,11 @@ pytest
 ### Profiling:
 
 ```sh
-python3 -m memory_profiler profile/bpe_owt.py
+python3 -m memory_profiler perf/bpe/owt.py
 ```
 
 or to submit a job to a slurm cluster:
 
 ```sh
-sbatch profile/bpe_owt.sbatch
+sbatch perf/bpe/owt.sbatch
 ```
