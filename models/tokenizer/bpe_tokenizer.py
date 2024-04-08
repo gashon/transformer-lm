@@ -38,10 +38,7 @@ class BPETokenizer:
         """
         print("getting presubwords")
 
-        with open(input_path, 'r', encoding='utf-8') as file:
-            text = file.read()
-
-        pretoken_counts = self.get_presubwords(text)
+        pretoken_counts = self.get_presubwords(input_path)
         unique_pretokens = list(pretoken_counts.keys())
         subwords = self._encode_presubwords(unique_pretokens)
         byte_pairs, token_indices = self._calculate_byte_pair_stats(subwords, pretoken_counts)
@@ -53,19 +50,39 @@ class BPETokenizer:
 
         return (self.vocab.get_idx_to_token(), self.merges)
 
-    def get_presubwords(self, text: str, chunk_size: int = 10000) -> dict[str, int]:
-        print(f"Before findall - Memory usage: {psutil.Process().memory_info().rss / 1024 / 1024} MB")
-        pretoken_counts: dict[str, int] = {}
+    def ends_with_special_token(self, line:str):
+        return any(line.strip().endswith(token) for token in self.special_tokens)
 
-        pre_subwords: list[str] = self.PAT.findall(text)
+    def get_presubwords(self, input_path:str | os.PathLike) -> dict[str, int]:
+        match_count = {}
 
-        for pretoken in pre_subwords:
-            if pretoken not in self.special_tokens:
-                pretoken_counts[pretoken] = pretoken_counts.get(pretoken, 0) + 1
+        with open(input_path, 'r') as file:
+            chunk = []
+            for line in file:
+                # Check if the current line ends with a special token
+                if self.ends_with_special_token(line):
+                    # Join the chunk into a single string for pattern matching
+                    chunk_str = ''.join(chunk)
+                    # Perform regex pattern matching on the chunk
+                    matches = self.PAT.findall(chunk_str)
+                    # Update the match count dictionary
+                    for match in matches:
+                        if match not in self.special_tokens:
+                            match_count[match] = match_count.get(match, 0) + 1
+                    # Reset the chunk for the next set of lines
+                    chunk = []
+                else:
+                    # If not a special token, add the line to the current chunk
+                    chunk.append(line)
 
-        print(f"After findall - Memory usage: {psutil.Process().memory_info().rss / 1024 / 1024} MB")
-        print(f"Number of unique pre-subwords: {len(pretoken_counts)}")
-        return pretoken_counts
+        if chunk:
+            chunk_str = ''.join(chunk)
+            matches = self.PAT.findall(chunk_str)
+            for match in matches:
+                if match not in self.special_tokens:
+                    match_count[match] = match_count.get(match, 0) + 1
+
+        return match_count
 
     # def get_presubwords(self, input_path: str | os.PathLike, chunk_size: int = 1048576) -> dict[str, int]:
     #     print(f"Before processing - Memory usage: {psutil.Process().memory_info().rss / 1024 / 1024} MB")
