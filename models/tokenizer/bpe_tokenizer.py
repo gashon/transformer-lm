@@ -39,8 +39,6 @@ class BPETokenizer:
                 - The vocabulary mapping indices to tokens.
                 - The list of merged byte pairs.
         """
-        print("getting presubwords")
-
         pretoken_counts = self.get_presubwords(input_path)
         unique_pretokens = list(pretoken_counts.keys())
         subwords = self._encode_presubwords(unique_pretokens)
@@ -128,7 +126,9 @@ class BPETokenizer:
                 if i not in token_indices[byte_pair]:
                     token_indices[byte_pair][i] = {"byte_idx": []}
                 token_indices[byte_pair][i]["count"] = count
-                token_indices[byte_pair][i]["byte_idx"].append(j)
+                # prevent merging of the same pair in the same token
+                if j-1 not in token_indices[byte_pair][i]["byte_idx"]:
+                    token_indices[byte_pair][i]["byte_idx"].append(j)
 
         return byte_pairs, token_indices
 
@@ -186,8 +186,8 @@ class BPETokenizer:
                 BPETokenizer._update_token_indices_after_merge(subwords, tkn_idx, merged_idx, token_indices)
 
             BPETokenizer._merge_subwords(subwords, tkn_idx, byte_idxs, new_token)
-            merged_idxs = [idx-pos for pos, idx in enumerate(byte_idxs)]
 
+            merged_idxs = [idx-pos for pos, idx in enumerate(byte_idxs)]
             for merged_idx in merged_idxs:
                 BPETokenizer._create_new_token_indices(subwords, tkn_idx, merged_idx, token_indices, best_pair)
 
