@@ -118,7 +118,7 @@ class BPETokenizer:
         ]
 
     @staticmethod
-    def _calculate_byte_pair_stats(subwords: list[list[bytes]], pretoken_counts: dict[str, int]) -> tuple[dict[tuple[bytes, bytes], int], dict[tuple[bytes, bytes], list[int]]]:
+    def _calculate_byte_pair_stats(subwords: list[list[bytes]], pretoken_counts: dict[str, int]) -> tuple[dict[tuple[bytes, bytes], int], dict[tuple[bytes, bytes], dict[int, int]]]:
         """
         Calculate the frequency of byte pairs and the token indices.
 
@@ -129,21 +129,29 @@ class BPETokenizer:
         Returns:
             A tuple containing:
                 - byte_pairs: A dictionary mapping byte pairs to their frequency.
-                - token_indices: A dictionary mapping byte pairs to the indices of tokens where they occur.
+                - token_indices: A dictionary mapping byte pairs to the indices of tokens (key) and number of occurrences (value). 
         """
+
         byte_pairs: dict[tuple[bytes, bytes], int] = collections.defaultdict(int)
-        token_indices: dict[tuple[bytes, bytes], list[int]] = collections.defaultdict(list)
+        token_indices = {}
 
         for i, word in enumerate(subwords):
             count = pretoken_counts[bytes(b''.join(word)).decode('utf-8')]
 
             for j in range(len(word) - 1):
                 byte_pairs[(word[j], word[j+1])] = byte_pairs.get((word[j], word[j+1]), 0) + count 
-                token_indices[(word[j], word[j+1])].extend([i for _ in range(count)])
+                if (word[j], word[j+1]) not in token_indices:
+                    token_indices[(word[j], word[j+1])] = {}
+                if i not in token_indices[(word[j], word[j+1])]:
+                    token_indices[(word[j], word[j+1])][i] = {}
+                    token_indices[(word[j], word[j+1])][i]["byte_idx"] = []
+                token_indices[(word[j], word[j+1])][i]["count"] = count 
+                token_indices[(word[j], word[j+1])][i]["byte_idx"].append(j)
+
         return byte_pairs, token_indices
 
     @staticmethod
-    def _merge_best_pair(subwords: list[list[bytes]], byte_pairs: dict[tuple[bytes, bytes], int], token_indices: dict[tuple[bytes, bytes], list[int]], merges: list[tuple[bytes, bytes]], vocab: Vocab) -> None:
+    def _merge_best_pair(subwords: list[list[bytes]], byte_pairs: dict[tuple[bytes, bytes], int], token_indices, merges: list[tuple[bytes, bytes]], vocab: Vocab) -> None:
         """
         Merge the best byte pair and update the subwords and vocabulary.
 
@@ -160,32 +168,69 @@ class BPETokenizer:
         new_token = best_pair[0] + best_pair[1]
         vocab.add_token(new_token)
 
-        indices = token_indices[best_pair]
-        for k, idx in enumerate(indices):
-            # j = 0
-            # while j < len(subwords[idx]) - 1:
-            #     (left, right) = (subwords[idx][j], subwords[idx][j+1])
-            #     if left == best_pair[0] and right == best_pair[1]:
-            #         BPETokenizer._update_byte_pair_stats(subwords, idx, j, new_token, byte_pairs, token_indices)
+        tkn_idxs = token_indices[best_pair].keys()
+        for tkn_idx in tkn_idxs:
+            byte_idxs = token_indices[best_pair][tkn_idx]["byte_idx"]
+            
+            for byte_idx in byte_idxs:
+                assert subwords[tkn_idx][byte_idx] == best_pair[0]
+                assert subwords[tkn_idx][byte_idx + 1] == best_pair[1]
 
-            to_merge = []
-            for j in range(len(subwords[idx]) - 1):
-                (left, right) = (subwords[idx][j], subwords[idx][j+1])
-                if left == best_pair[0] and right == best_pair[1]:
-                    BPETokenizer._update_byte_pair_stats(subwords, idx, j, new_token, byte_pairs, token_indices)
-                    to_merge.append(j)
+                count = token_indices[best_pair][tkn_idx]["count"]
+                
+                BPETokenizer._update_byte_pair_stats(subwords, tkn_idx, byte_idx, new_token, byte_pairs, token_indices, count)
 
-            if idx not in indices[k+1:]:
+            # merge
+            merged_idxs = byte_idxs
+            for merged_idx in merged_idxs:
+                if merged_idx > 0: 
+                    pair = (subwords[tkn_idx][merged_idx - 1], subwords[tkn_idx][merged_idx])
+                    if merged_idx - 1 in token_indices[pair][tkn_idx]["byte_idx"]:
+                        token_indices[pair][tkn_idx]["byte_idx"].remove(merged_idx - 1)
+                if merged_idx < len(subwords[tkn_idx]) - 2:
+                    pair = (subwords[tkn_idx][merged_idx+1], subwords[tkn_idx][merged_idx + 2])
+                    if merged_idx + 1 in token_indices[pair][tkn_idx]["byte_idx"]:
+                        token_indices[pair][tkn_idx]["byte_idx"].remove(merged_idx + 1)
 
-                for j in to_merge[::-1]:
-                    # complete the merge for the current token
-                    subwords[idx][j:j+2] = [new_token]
+            for byte_idx in byte_idxs[::-1]:
+                subwords[tkn_idx][byte_idx] = new_token
+                subwords[tkn_idx].pop(byte_idx + 1)
+
+            merged_idxs = [idx-pos for pos, idx in enumerate(byte_idxs)]
+
+            for merged_idx in merged_idxs:
+                count = token_indices[best_pair][tkn_idx]["count"]
+                # create new entry for merged token neighbors
+                if merged_idx > 0:
+                    left_pair = (subwords[tkn_idx][merged_idx - 1], subwords[tkn_idx][merged_idx])
+                    if left_pair not in token_indices:
+                        token_indices[left_pair] = {}
+                    token_indices[left_pair][tkn_idx] = {"count": count, "byte_idx": []}
+                    token_indices[left_pair][tkn_idx]["byte_idx"].append(merged_idx - 1)
+
+                if merged_idx < len(subwords[tkn_idx]) - 1:
+                    right_pair = (subwords[tkn_idx][merged_idx], subwords[tkn_idx][merged_idx + 1])
+                    if right_pair not in token_indices:
+                        token_indices[right_pair] = {}
+                    token_indices[right_pair][tkn_idx] = {"count": count, "byte_idx": []}
+                    token_indices[right_pair][tkn_idx]["byte_idx"].append(merged_idx)
+        
+
+            # update token indices
+            for byte_idx in range(len(subwords[tkn_idx]) - 1): 
+                pair = (subwords[tkn_idx][byte_idx], subwords[tkn_idx][byte_idx + 1])
+                token_indices[pair][tkn_idx]["byte_idx"] = []
+
+            for byte_idx in range(len(subwords[tkn_idx]) - 1):
+                pair = (subwords[tkn_idx][byte_idx], subwords[tkn_idx][byte_idx + 1])
+                token_indices[pair][tkn_idx]["byte_idx"].append(byte_idx)
+
 
         byte_pairs.pop(best_pair)
         token_indices.pop(best_pair)
 
     @staticmethod
-    def _update_byte_pair_stats(subwords: list[list[bytes]], i: int, j: int, new_token: bytes, byte_pairs: dict[tuple[bytes, bytes], int], token_indices: dict[tuple[bytes, bytes], list[int]]) -> None:
+    def _update_byte_pair_stats(subwords: list[list[bytes]], i: int, j: int, new_token: bytes, byte_pairs: dict[tuple[bytes, bytes], int], token_indices, freq: int) -> None:
         """
         Update the byte pair statistics after merging a pair.
 
@@ -199,15 +244,14 @@ class BPETokenizer:
         """
         if j > 0:
             left_pair = (subwords[i][j-1], subwords[i][j])
-            byte_pairs[left_pair] -= 1
-            byte_pairs[(subwords[i][j-1], new_token)] += 1
-            token_indices[(subwords[i][j-1], new_token)].append(i)
+            byte_pairs[left_pair] -= freq 
+            byte_pairs[(subwords[i][j-1], new_token)] += freq
+
         if j < len(subwords[i]) - 2:
             right_pair = (subwords[i][j+1], subwords[i][j+2])
-            byte_pairs[right_pair] -= 1
-            byte_pairs[(new_token, subwords[i][j+2])] += 1
-            token_indices[(new_token, subwords[i][j+2])].append(i)
-
+            byte_pairs[right_pair] -= freq
+            byte_pairs[(new_token, subwords[i][j+2])] += freq
+           
     def save_to_file(self, vocab_file: str, merges_file: str) -> None:
         """
         Save the vocabulary and merges to files for further inspection.
