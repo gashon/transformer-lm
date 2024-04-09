@@ -15,7 +15,7 @@ class Tokenizer:
 
         # gpt-2 pre-tokenizer
         # @see https://github.com/openai/tiktoken/pull/234
-        pat = r"""(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+        pat = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
         self.PAT = re.compile(pat, re.UNICODE)
 
         self.special_tokens.sort(key=len, reverse=True)
@@ -84,9 +84,8 @@ class Tokenizer:
         # Pre-tokenize
         segments = self.segment(text)
         pre_token_count = self.pretokenize(segments)
+        print("pre", pre_token_count, segments)
         
-        print("pre_token_count:", pre_token_count, self.special_tokens, segments)
-
         ids = []
         for token in pre_token_count:
             if token in self.special_tokens:
@@ -99,7 +98,6 @@ class Tokenizer:
 
             while len(raw_bytes) > 1:
                 pairs = [pair for pair in zip(raw_bytes, raw_bytes[1:])]
-                print('pairs:', pairs)
                 pair = min(pairs, key= lambda p: self.merges.get(p, float("inf")))
                 if pair not in self.merges:
                     break
