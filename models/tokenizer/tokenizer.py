@@ -82,23 +82,13 @@ class Tokenizer:
         # Pre-tokenize
         segments = self.segment(text)
         pre_token_count = self.pretokenize(segments)
-        print("pre_token_count", pre_token_count, self.special_tokens)
         
         ids = []
         for token in pre_token_count:
-            print("token", token)
             if token in self.special_tokens:
                 id = self.vocab_inv[token.encode('utf-8')]
-                print("is_spcial_token", token, id)
                 ids.append(id)
                 continue
-            # for special_token in self.special_tokens:
-            #     print("checking", special_token)
-            #     if special_token in token:
-            #         id = self.vocab_inv[special_token.encode('utf-8')]
-            #         print("is_spcial_token", special_token, id)
-            #         ids.append(id)
-            #         continue
 
             raw_bytes = [bytes([b]) for b in token.encode('utf-8')]
             token_ids = []
