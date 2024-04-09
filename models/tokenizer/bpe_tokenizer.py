@@ -57,16 +57,11 @@ class BPETokenizer:
         match_count: Dict[str, int] = {}
 
         with open(input_path, 'r') as file:
-            chunk = []
             for line in file:
-                if self.ends_with_special_token(line):
-                    self._update_match_count(chunk, match_count)
-                    chunk = []
-                else:
-                    chunk.append(line)
-
-        if chunk:
-            self._update_match_count(chunk, match_count)
+                matches = self.PAT.findall(line)
+                for match in matches:
+                    if match not in self.special_tokens:
+                        match_count[match] = match_count.get(match, 0) + 1
 
         return match_count
 
