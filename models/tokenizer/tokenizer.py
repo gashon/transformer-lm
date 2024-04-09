@@ -20,7 +20,7 @@ class Tokenizer:
 
         self.special_tokens.sort(key=len, reverse=True)
         special = "|".join(re.escape(token) for token in self.special_tokens)
-        self.segment_rgx = f"({special})" 
+        self.segment_rgx = f"({special})" if special else None
 
         # Add special tokens to vocabulary if not present
         for token in self.special_tokens:
@@ -39,6 +39,8 @@ class Tokenizer:
         return cls(vocab, merges, special_tokens)
 
     def segment(self, text: str) -> List[str]:
+        if self.segment_rgx is None:
+            return [text]
         return re.split(self.segment_rgx, text)
 
     def match(self, text: str) -> List[str]:
@@ -83,6 +85,8 @@ class Tokenizer:
         segments = self.segment(text)
         pre_token_count = self.pretokenize(segments)
         
+        print("pre_token_count:", pre_token_count, self.special_tokens, segments)
+
         ids = []
         for token in pre_token_count:
             if token in self.special_tokens:
@@ -95,6 +99,7 @@ class Tokenizer:
 
             while len(raw_bytes) > 1:
                 pairs = [pair for pair in zip(raw_bytes, raw_bytes[1:])]
+                print('pairs:', pairs)
                 pair = min(pairs, key= lambda p: self.merges.get(p, float("inf")))
                 if pair not in self.merges:
                     break
