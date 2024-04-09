@@ -56,12 +56,10 @@ class BPETokenizer:
     def get_presubwords(self, input_path: str | os.PathLike) -> Dict[str, int]:
         match_count: Dict[str, int] = {}
 
-        with open(input_path, 'r') as file:
-            for line in file:
-                matches = self.PAT.findall(line)
-                for match in matches:
-                    if match not in self.special_tokens:
-                        match_count[match] = match_count.get(match, 0) + 1
+        for match in self.PAT.finditer(open(input_path, 'r', encoding='utf-8').read()):
+            match_str = match.group()
+            if match_str not in self.special_tokens:
+                match_count[match_str] = match_count.get(match_str, 0) + 1
 
         return match_count
 
