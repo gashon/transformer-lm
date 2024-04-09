@@ -6,7 +6,6 @@ from typing import List, Tuple, Dict
 
 from memory_profiler import profile
 from models.tokenizer.vocab import Vocab
-import psutil
 
 
 class BPETokenizer:
@@ -170,7 +169,6 @@ class BPETokenizer:
         tkn_idxs = token_indices[best_pair].keys()
         for tkn_idx in tkn_idxs:
             byte_idxs = token_indices[best_pair][tkn_idx]["byte_idx"]
-            ret = []
 
             num_merged = 0
             for byte_idx in byte_idxs:
@@ -182,11 +180,10 @@ class BPETokenizer:
                 assert subwords[tkn_idx][byte_idx + 1] == best_pair[1]
 
                 count = token_indices[best_pair][tkn_idx]["count"]
-                BPETokenizer._update_byte_pair_stats(subwords, tkn_idx, byte_idx, new_token, byte_pairs, token_indices, count)
+                BPETokenizer._update_byte_pair_stats(subwords, tkn_idx, byte_idx, new_token, byte_pairs, count)
 
-                # TODO HANDLE MERGE HERE
                 # update token indicies (decrement left and right frequencies) + remove the indicies at this token
-                BPETokenizer._update_token_indices_after_merge(subwords, tkn_idx, byte_idx, token_indices, best_pair)
+                BPETokenizer._update_token_indices_after_merge(subwords, tkn_idx, byte_idx, token_indices)
 
                 # merge the pair
                 BPETokenizer._merge_subwords(subwords, tkn_idx, byte_idx, new_token)
@@ -194,20 +191,6 @@ class BPETokenizer:
                 # update token indicies (create new token indicies for the merged pair)
                 BPETokenizer._create_new_token_indices(subwords, tkn_idx, byte_idx, token_indices, best_pair)
                 BPETokenizer._reset_token_indices(subwords, tkn_idx, token_indices)
-
-
-
-            # merged_idxs = byte_idxs
-            # for merged_idx in merged_idxs:
-            #     BPETokenizer._update_token_indices_after_merge(subwords, tkn_idx, merged_idx, token_indices)
-            #
-            # BPETokenizer._merge_subwords(subwords, tkn_idx, byte_idxs, new_token)
-            #
-            # merged_idxs = [idx-pos for pos, idx in enumerate(byte_idxs)]
-            # for merged_idx in merged_idxs:
-            #     BPETokenizer._create_new_token_indices(subwords, tkn_idx, merged_idx, token_indices, best_pair)
-
-            # BPETokenizer._reset_token_indices(subwords, tkn_idx, token_indices)
 
         byte_pairs.pop(best_pair)
         token_indices.pop(best_pair)
@@ -218,7 +201,6 @@ class BPETokenizer:
         tkn_idx: int,
         merged_idx: int,
         token_indices: Dict[Tuple[bytes, bytes], Dict[int, Dict[str, List[int]]]],
-        best_pair: Tuple[bytes, bytes]
     ) -> None:
         """
         Update token indices after merging a pair.
@@ -319,7 +301,6 @@ class BPETokenizer:
         j: int,
         new_token: bytes,
         byte_pairs: Dict[Tuple[bytes, bytes], int],
-        token_indices: Dict[Tuple[bytes, bytes], Dict[int, Dict[str, List[int]]]],
         freq: int
     ) -> None:
         """
