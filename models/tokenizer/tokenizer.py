@@ -9,13 +9,16 @@ class Tokenizer:
         self.vocab = vocab
         self.vocab_inv = {v: k for k, v in self.vocab.items()}
         self.special_tokens = special_tokens or []
-        self.merges = collections.defaultdict(dict)
+        self.merges = collections.defaultdict(int)
         for i, (a, b) in enumerate(merges):
             self.merges[(a, b)] = i
 
         # gpt-2 pre-tokenizer
         # @see https://github.com/openai/tiktoken/pull/234
-        self.PAT = re.compile(r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""", re.UNICODE)
+        special = "|".join(re.escape(token) for token in self.special_tokens)
+        pat = r"""(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+        self.segment_rgx = f"({special})" 
+        self.PAT = re.compile(pat, re.UNICODE)
 
         # Add special tokens to vocabulary if not present
         for token in self.special_tokens:
@@ -33,7 +36,10 @@ class Tokenizer:
         merges = [(bytes(a, 'utf-8'), bytes(b, 'utf-8')) for a, b in merges]
         return cls(vocab, merges, special_tokens)
 
-    def pretokenize(self, text: str) -> List[str]:
+    def segment(self, text: str) -> List[str]:
+        return re.split(self.segment_rgx, text)
+
+    def match(self, text: str) -> List[str]:
         matches = [] 
 
         for match in self.PAT.finditer(text):
@@ -43,6 +49,17 @@ class Tokenizer:
             matches.append(match_str)
 
         return matches 
+
+    def pretokenize(self, segments: List[str]) -> List[str]: 
+        matches = []
+
+        for segment in segments:
+            if segment in self.special_tokens:
+                matches.append(segment)
+            else:
+                matches.extend(self.match(segment))
+
+        return matches
 
     def merge(self, tokens: List[bytes], pair: Tuple[bytes, bytes], replacement: bytes) -> List[bytes]:
         new_tokens = []
@@ -59,11 +76,15 @@ class Tokenizer:
 
     def encode(self, text: str) -> List[int]:
         # Pre-tokenize
-        pre_token_count = self.pretokenize(text)
-        print("Pre-token count: ", pre_token_count)
+        segments = self.segment(text)
+        pre_token_count = self.pretokenize(segments)
         
         ids = []
         for token in pre_token_count:
+            if token in self.special_tokens:
+                ids.append(self.vocab_inv[token.encode('utf-8')])
+                continue
+
             raw_bytes = [bytes([b]) for b in token.encode('utf-8')]
             token_ids = []
 
