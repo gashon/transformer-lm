@@ -15,10 +15,12 @@ class Tokenizer:
 
         # gpt-2 pre-tokenizer
         # @see https://github.com/openai/tiktoken/pull/234
-        special = "|".join(re.escape(token) for token in self.special_tokens)
         pat = r"""(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
-        self.segment_rgx = f"({special})" 
         self.PAT = re.compile(pat, re.UNICODE)
+
+        self.special_tokens.sort(key=len, reverse=True)
+        special = "|".join(re.escape(token) for token in self.special_tokens)
+        self.segment_rgx = f"({special})" 
 
         # Add special tokens to vocabulary if not present
         for token in self.special_tokens:
@@ -54,6 +56,8 @@ class Tokenizer:
         matches = []
 
         for segment in segments:
+            if segment == '':
+                continue
             if segment in self.special_tokens:
                 matches.append(segment)
             else:
@@ -78,12 +82,23 @@ class Tokenizer:
         # Pre-tokenize
         segments = self.segment(text)
         pre_token_count = self.pretokenize(segments)
+        print("pre_token_count", pre_token_count, self.special_tokens)
         
         ids = []
         for token in pre_token_count:
+            print("token", token)
             if token in self.special_tokens:
-                ids.append(self.vocab_inv[token.encode('utf-8')])
+                id = self.vocab_inv[token.encode('utf-8')]
+                print("is_spcial_token", token, id)
+                ids.append(id)
                 continue
+            # for special_token in self.special_tokens:
+            #     print("checking", special_token)
+            #     if special_token in token:
+            #         id = self.vocab_inv[special_token.encode('utf-8')]
+            #         print("is_spcial_token", special_token, id)
+            #         ids.append(id)
+            #         continue
 
             raw_bytes = [bytes([b]) for b in token.encode('utf-8')]
             token_ids = []
@@ -94,6 +109,7 @@ class Tokenizer:
                 if pair not in self.merges:
                     break
                 raw_bytes = self.merge(raw_bytes, pair, pair[0] + pair[1])
+
             for byte in raw_bytes:
                 token_ids.append(self.vocab_inv[byte])
             ids.extend(token_ids)
@@ -113,4 +129,3 @@ class Tokenizer:
         for pair in zip(tokens, tokens[1:]):
             counts[pair] += 1
         return counts
-
