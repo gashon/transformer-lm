@@ -10,7 +10,7 @@ import torch
 from models.tokenizer.bpe_tokenizer import BPETokenizer 
 from models.tokenizer.tokenizer import Tokenizer
 
-from models.transformer.util import RMSNorm
+from models.transformer.util import RMSNorm, PositionWiseFeedForward, gelu
 
 
 def run_positionwise_feedforward(
@@ -48,7 +48,11 @@ def run_positionwise_feedforward(
     # You can also manually assign the weights
     # my_ffn.w1.weight.data = weights["w1.weight"]
     # my_ffn.w2.weight.data = weights["w2.weight"]
-    raise NotImplementedError
+
+    ffn = PositionWiseFeedForward(d_model, d_ff)
+    ffn.w1.weight.data = weights["w1.weight"]
+    ffn.w2.weight.data = weights["w2.weight"]
+    return ffn.forward(in_features)
 
 
 def run_scaled_dot_product_attention(
@@ -324,9 +328,6 @@ def run_rmsnorm(
     rmsnorm = RMSNorm(d_model, eps, gain)
     return rmsnorm.forward(in_features)
 
-
-
-
 def run_gelu(in_features: torch.FloatTensor) -> torch.FloatTensor:
     """Given a tensor of inputs, return the output of applying GELU
     to each element.
@@ -339,7 +340,7 @@ def run_gelu(in_features: torch.FloatTensor) -> torch.FloatTensor:
         FloatTensor of with the same shape as `in_features` with the output of applying
         GELU to each element.
     """
-    raise NotImplementedError
+    return gelu(in_features)
 
 
 def run_get_batch(
