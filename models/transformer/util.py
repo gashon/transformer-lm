@@ -41,3 +41,24 @@ def gelu(features: torch.FloatTensor) -> torch.FloatTensor:
     """
     return 0.5 * features * (1 + torch.erf(features / torch.sqrt(torch.tensor(2.0))))
 
+def softmax(scores: torch.Tensor, dim: int) -> torch.Tensor:
+    """Given a tensor of scores, apply softmax activation along the specified dimension.
+
+    Args:
+        scores: torch.Tensor
+            Tensor of scores to apply softmax on.
+        dim: int
+            Dimension to apply softmax on.
+
+    Returns:
+        probabilities: torch.Tensor
+            Tensor of probabilities after applying softmax.
+    """
+    # Subtract the maximum value for numerical stability
+    max_scores = scores.max(dim=dim, keepdim=True).values
+    exp_scores = torch.exp(scores - max_scores)
+
+    # Compute softmax scores
+    probabilities = exp_scores / exp_scores.sum(dim=dim, keepdim=True)
+    return probabilities
+
