@@ -1,5 +1,7 @@
+from typing import Optional
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 class RMSNorm(nn.Module):
     def __init__(self, d_model: int, eps: float, gain=None):
@@ -26,6 +28,41 @@ class PositionWiseFeedForward(nn.Module):
         x = self.w2(x)
         return x
 
+def scaled_dot_product_attention(q: torch.FloatTensor, k: torch.FloatTensor, v: torch.FloatTensor, mask: Optional[torch.BoolTensor] = None, pdrop: Optional[float]= 0.0):
+    """Compute scaled dot-product attention.
+        
+    Args:
+        q: torch.FloatTensor
+            Query tensor of shape (batch_size, seq_len_q, d_model).
+        k: torch.FloatTensor
+            Key tensor of shape (batch_size, seq_len_k, d_model).
+        v: torch.FloatTensor
+            Value tensor of shape (batch_size, seq_len_v, d_model).
+        mask: torch.BoolTensor
+            Mask tensor of shape (batch_size, seq_len_q, seq_len_k).
+        pdrop: float
+            Dropout probability.
+
+    Returns:
+        output: torch.FloatTensor
+
+    """
+    d_k = q.size(-1)
+    scores = torch.matmul(q, k.transpose(-2, -1)) / torch.sqrt(torch.tensor(d_k).float())
+
+    # Apply mask to the scores
+    if mask is not None:
+        scores = scores.masked_fill(mask, float('-inf'))
+
+    attn_weights = F.softmax(scores, dim=-1)
+
+    if pdrop and pdrop > 0.0:
+        attn_weights = F.dropout(attn_weights, p=pdrop)
+
+    output = torch.matmul(attn_weights, v)
+
+    return output 
+
 def gelu(features: torch.FloatTensor) -> torch.FloatTensor:
     """Given input features, return the output of applying a GELU activation function.
 
@@ -41,7 +78,7 @@ def gelu(features: torch.FloatTensor) -> torch.FloatTensor:
     """
     return 0.5 * features * (1 + torch.erf(features / torch.sqrt(torch.tensor(2.0))))
 
-def softmax(scores: torch.Tensor, dim: int) -> torch.Tensor:
+def softmax(scores: torch.FloatTensor, dim: int) -> torch.FloatTensor:
     """Given a tensor of scores, apply softmax activation along the specified dimension.
 
     Args:
