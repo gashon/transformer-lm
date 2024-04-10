@@ -10,6 +10,9 @@ import torch
 from models.tokenizer.bpe_tokenizer import BPETokenizer 
 from models.tokenizer.tokenizer import Tokenizer
 
+from models.transformer.util import RMSNorm
+
+
 def run_positionwise_feedforward(
     d_model: int,
     d_ff: int,
@@ -317,7 +320,11 @@ def run_rmsnorm(
         FloatTensor of with the same shape as `in_features` with the output of running
         layernorm of the `in_features`.
     """
-    raise NotImplementedError
+    gain = weights["weight"]
+    rmsnorm = RMSNorm(d_model, eps, gain)
+    return rmsnorm.forward(in_features)
+
+
 
 
 def run_gelu(in_features: torch.FloatTensor) -> torch.FloatTensor:
