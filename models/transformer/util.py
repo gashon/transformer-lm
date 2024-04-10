@@ -8,7 +8,7 @@ class RMSNorm(nn.Module):
         self.eps = eps 
         self.gain = nn.Parameter(torch.ones(d_model)) if gain is None else gain 
 
-    def forward(self, x):
+    def forward(self, x: torch.FloatTensor):
         rms = torch.sqrt(torch.mean(x ** 2, dim=-1, keepdim=True) + self.eps)
         x_normed = x / rms
         x_scaled = self.gain * x_normed
@@ -21,7 +21,7 @@ class PositionWiseFeedForward(nn.Module):
         self.w2 = nn.Linear(d_ff, d_model, bias=False)
         self.activation = gelu 
 
-    def forward(self, x):
+    def forward(self, x: torch.FloatTensor):
         x = self.activation(self.w1(x))
         x = self.w2(x)
         return x
