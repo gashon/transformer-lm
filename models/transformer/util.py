@@ -1,32 +1,9 @@
 from typing import Optional
+import numpy as np
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
-
-class RMSNorm(nn.Module):
-    def __init__(self, d_model: int, eps: float, gain=None):
-        super(RMSNorm, self).__init__()
-        self.d_model = d_model
-        self.eps = eps 
-        self.gain = nn.Parameter(torch.ones(d_model)) if gain is None else gain 
-
-    def forward(self, x: torch.FloatTensor):
-        rms = torch.sqrt(torch.mean(x ** 2, dim=-1, keepdim=True) + self.eps)
-        x_normed = x / rms
-        x_scaled = self.gain * x_normed
-        return x_scaled
-
-class PositionWiseFeedForward(nn.Module):
-    def __init__(self, d_model: int, d_ff: int):
-        super(PositionWiseFeedForward, self).__init__()
-        self.w1 = nn.Linear(d_model, d_ff, bias=False)
-        self.w2 = nn.Linear(d_ff, d_model, bias=False)
-        self.activation = gelu 
-
-    def forward(self, x: torch.FloatTensor):
-        x = self.activation(self.w1(x))
-        x = self.w2(x)
-        return x
+from collections.abc import Callable
+from typing import Optional
 
 def scaled_dot_product_attention(q: torch.FloatTensor, k: torch.FloatTensor, v: torch.FloatTensor, mask: Optional[torch.BoolTensor] = None, pdrop: Optional[float]= 0.0):
     """Compute scaled dot-product attention.
@@ -98,4 +75,99 @@ def softmax(scores: torch.FloatTensor, dim: int) -> torch.FloatTensor:
     # Compute softmax scores
     probabilities = exp_scores / exp_scores.sum(dim=dim, keepdim=True)
     return probabilities
+
+def cross_entropy_loss(logits: torch.FloatTensor, targets: torch.LongTensor) -> torch.FloatTensor:
+    """Given a tensor of logits and a tensor of targets, compute the cross-entropy loss.
+
+    Args:
+        logits: torch.FloatTensor
+            Tensor of logits from the model.
+            Shape is (batch_size, seq_len, vocab_size).
+        targets: torch.LongTensor
+            Tensor of targets.
+            Shape is (batch_size, seq_len).
+
+    Returns:
+        loss: torch.FloatTensor
+            Scalar tensor representing the cross-entropy loss.
+    """
+    # Ensure logits are float32 for numerical stability
+    logits = logits.float()
+
+    # Subtract the maximum value from logits along vocab dimension for numerical stability
+    max_logits = torch.max(logits, dim=1, keepdim=True)[0]
+    logits = logits - max_logits
+
+    # Compute the exponentials of the logits and their sum
+    exp_logits = torch.exp(logits)
+    sum_exp_logits = torch.sum(exp_logits, dim=1, keepdim=True)
+
+    # Compute softmax probabilities
+    softmax_probs = exp_logits / sum_exp_logits
+
+    # Gather the softmax probabilities for the correct classes
+    target_probs = softmax_probs.gather(1, targets.unsqueeze(1)).squeeze()
+
+    # Compute the negative log likelihood
+    neg_log_likelihood = -torch.log(target_probs + 1e-9)  # Adding a small value to prevent log(0)
+
+    # Return the average loss over the batch
+    return torch.mean(neg_log_likelihood)
+
+class AdamW(torch.optim.Optimizer):
+    def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8, weight_decay=0.01):
+        if lr < 0:
+            raise ValueError(f"Invalid learning rate: {lr}")
+        beta1, beta2 = betas
+        if not 0.0 <= beta1 < 1.0:
+            raise ValueError(f"Invalid beta1 value: {beta1}")
+        if not 0.0 <= beta2 < 1.0:
+            raise ValueError(f"Invalid beta2 value: {beta2}")
+        if eps <= 0:
+            raise ValueError(f"Invalid epsilon value: {eps}")
+        if weight_decay < 0:
+            raise ValueError(f"Invalid weight_decay value: {weight_decay}")
+        
+        defaults = dict(lr=lr, beta1=beta1, beta2=beta2, epsilon=eps, weight_decay=weight_decay)
+        super().__init__(params, defaults)
+
+    def step(self, closure: Optional[Callable] = None):
+        loss = None
+        if closure is not None:
+            loss = closure()
+
+        for group in self.param_groups:
+            for p in group['params']:
+                if p.grad is None:
+                    continue
+                
+                grad = p.grad.data
+                state = self.state[p]
+
+                # Initialize state
+                if len(state) == 0:
+                    state['step'] = 0
+                    state['m'] = torch.zeros_like(p.data)
+                    state['v'] = torch.zeros_like(p.data)
+
+                m, v = state['m'], state['v']
+                beta1, beta2 = group['beta1'], group['beta2']
+                lr = group['lr']
+                epsilon = group['epsilon']
+                weight_decay = group['weight_decay']
+
+                state['step'] += 1
+
+                # AdamW update
+                m.mul_(beta1).add_(grad, alpha=1 - beta1)
+                v.mul_(beta2).addcmul_(grad, grad, value=1 - beta2)
+
+                bias_correction1 = 1 - beta1 ** state['step']
+                bias_correction2 = 1 - beta2 ** state['step']
+                step_size = lr * (bias_correction2 ** 0.5) / bias_correction1
+
+                p.data.addcdiv_(m, v.sqrt().add_(epsilon), value=-step_size)
+                p.data.add_(p.data, alpha=-lr * weight_decay)
+
+        return loss
 

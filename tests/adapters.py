@@ -10,8 +10,9 @@ import torch
 from models.tokenizer.bpe_tokenizer import BPETokenizer 
 from models.tokenizer.tokenizer import Tokenizer
 
-from models.transformer.util import RMSNorm, PositionWiseFeedForward, gelu, softmax, scaled_dot_product_attention
+from models.transformer.layers import CausalMultiHeadAttention, RMSNorm
 
+from models.transformer.util import gelu, softmax, scaled_dot_product_attention, cross_entropy_loss, AdamW
 
 def run_positionwise_feedforward(
     d_model: int,
@@ -140,7 +141,29 @@ def run_multihead_self_attention(
         torch.FloatTensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    new_weights = {
+        "output_proj.weight": weights.get("output_proj.weight")  # Safely get the output projection weights
+    }
+
+    # Iterate through each head and safely get the weights for q, k, and v projections
+    for i in range(num_heads):
+        q_key = f"q_heads.{i}.weight"
+        k_key = f"k_heads.{i}.weight"
+        v_key = f"v_heads.{i}.weight"
+
+        if q_key in weights and k_key in weights and v_key in weights:
+            new_weights[q_key] = weights[q_key]
+            new_weights[k_key] = weights[k_key]
+            new_weights[v_key] = weights[v_key]
+        else:
+            # Log or handle missing keys appropriately
+            print(f"Warning: Missing weights for head {i}, keys checked were {q_key}, {k_key}, {v_key}.")
+
+    mha = CausalMultiHeadAttention(d_model, num_heads, weights=new_weights)
+    
+    output = mha(in_features)
+    
+    return output
 
 
 def run_transformer_block(
@@ -402,7 +425,8 @@ def run_cross_entropy(inputs: torch.FloatTensor, targets: torch.LongTensor):
     Returns:
         Tensor of shape () with the average cross-entropy loss across examples.
     """
-    raise NotImplementedError
+    return cross_entropy_loss(inputs, targets)
+
 
 
 def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float):
@@ -424,7 +448,8 @@ def get_adamw_cls() -> Type[torch.optim.Optimizer]:
     """
     Returns a torch.optim.Optimizer that implements AdamW.
     """
-    raise NotImplementedError
+    return AdamW
+
 
 
 def run_get_lr_cosine_schedule(
