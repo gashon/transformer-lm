@@ -12,7 +12,7 @@ from models.tokenizer.tokenizer import Tokenizer
 
 from models.transformer.layers import CausalMultiHeadAttention, RMSNorm
 
-from models.transformer.util import gelu, softmax, scaled_dot_product_attention, cross_entropy_loss, AdamW, cosine_learning_rate_schedule
+from models.transformer.util import gelu, softmax, scaled_dot_product_attention, cross_entropy_loss, AdamW, cosine_learning_rate_schedule, clip_gradients
 
 def run_positionwise_feedforward(
     d_model: int,
@@ -441,7 +441,7 @@ def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm:
     Returns:
         None
     """
-    raise NotImplementedError
+    clip_gradients(parameters, max_l2_norm)
 
 
 def get_adamw_cls() -> Type[torch.optim.Optimizer]:
