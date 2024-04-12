@@ -12,7 +12,7 @@ from models.tokenizer.tokenizer import Tokenizer
 
 from models.transformer.layers import CausalMultiHeadAttention, RMSNorm
 
-from models.transformer.util import gelu, softmax, scaled_dot_product_attention, cross_entropy_loss, AdamW
+from models.transformer.util import gelu, softmax, scaled_dot_product_attention, cross_entropy_loss, AdamW, cosine_learning_rate_schedule
 
 def run_positionwise_feedforward(
     d_model: int,
@@ -482,7 +482,7 @@ def run_get_lr_cosine_schedule(
     Returns:
         Tensor of shape () with the average cross-entropy loss across examples.
     """
-    raise NotImplementedError
+    return cosine_learning_rate_schedule(it, max_learning_rate, min_learning_rate, warmup_iters, cosine_cycle_iters)
 
 
 def run_save_checkpoint(
