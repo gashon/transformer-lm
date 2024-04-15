@@ -1,32 +1,32 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import math
 
 from models.transformer.util import scaled_dot_product_attention, softmax, gelu
 
 class TransformerBlock(nn.Module):
     def __init__(self, d_model, num_heads, d_ff, attn_pdrop=None, residual_pdrop=None):
         super(TransformerBlock, self).__init__()
-        self.norm1 = RMSNorm(d_model, eps=1e-6)
+        self.norm1 = RMSNorm(d_model, eps=1e-5)
         self.mha = CausalMultiHeadAttention(d_model, num_heads, attn_pdrop)
-        self.dropout1 = nn.Dropout(residual_pdrop) if residual_pdrop is not None else nn.Identity()
-        self.norm2 = RMSNorm(d_model, eps=1e-6)
+        self.dropout1 = nn.Dropout(residual_pdrop, inplace=False) if residual_pdrop is not None else nn.Identity()
+
+        self.norm2 = RMSNorm(d_model, eps=1e-5)
         self.ff = PositionWiseFeedForward(d_model, d_ff)
-        self.dropout2 = nn.Dropout(residual_pdrop) if residual_pdrop is not None else nn.Identity()
+        self.dropout2 = nn.Dropout(residual_pdrop, inplace=False) if residual_pdrop is not None else nn.Identity()
 
     def forward(self, x):
-        x1 = self.norm1(x)
-        x1 = self.mha(x1)
-        x1 = self.dropout1(x1)
-        x = x + x1
+        rms_norm_output = self.norm1(x)
+        mha_output = self.mha(rms_norm_output)
+        dropout_output = self.dropout1(mha_output)
+        attn_output = x + dropout_output
+
+        rms_norm_output = self.norm2(attn_output)
+        ff_output = self.ff(rms_norm_output)
+        dropout_output = self.dropout2(ff_output)
+
+        return attn_output + dropout_output
         
-        x2 = self.norm2(x)
-        x2 = self.ff(x2)
-        x2 = self.dropout2(x2)
-        x = x + x2
-        
-        return x
 
     def load_weights(self, weights):
         # Load weights for multi-head attention
@@ -77,10 +77,10 @@ class CausalMultiHeadAttention(nn.Module):
         v = torch.matmul(x, self.v_heads.t()).view(batch_size, seq_len, self.num_heads, self.dv).transpose(1, 2)
 
         # Scaled dot-product attention
-        causal_mask = torch.triu(torch.ones(seq_len, seq_len, device=x.device), diagonal=1).bool()
-        attn_output = scaled_dot_product_attention(q, k, v, mask=causal_mask.unsqueeze(0).unsqueeze(0), pdrop=self.attn_pdrop, dk=self.dk)
-        attn_output = attn_output.transpose(1, 2).reshape(batch_size, seq_len, self.d_model)
-        return torch.matmul(attn_output, self.output_proj.t())
+        causal_mask = torch.triu(torch.ones(seq_len, seq_len, device=x.device), diagonal=1) > 0
+        attn_output = scaled_dot_product_attention(q, k, v, mask=causal_mask, pdrop=self.attn_pdrop)
+        attn_output = attn_output.transpose(1, 2).contiguous().view(batch_size, -1, self.d_model)
+        return torch.matmul(attn_output, self.output_proj.transpose(0, 1))
 
     def load_weights(self, weights):
         self.q_heads.data = torch.cat([weights[f'q_heads.{i}.weight'] for i in range(self.num_heads)], dim=0)

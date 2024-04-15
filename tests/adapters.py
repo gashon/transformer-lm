@@ -213,9 +213,7 @@ def run_transformer_block(
     """
     block = TransformerBlock(d_model, num_heads, d_ff, attn_pdrop, residual_pdrop)
     block.load_weights(weights)
-    block.eval()
     output = block.forward(in_features)
-    print("Output of Transformer Block:", output.shape)
     return output
 
 
