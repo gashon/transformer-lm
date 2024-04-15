@@ -96,7 +96,7 @@ def run_scaled_dot_product_attention(
         with the output of running your scaled dot product attention
         implementation with the provided key, query, and value tensors.
     """
-    return mcaled_dot_product_attention(Q, K, V, mask, pdrop)
+    return scaled_dot_product_attention(Q, K, V, mask, pdrop)
 
 
 def run_multihead_self_attention(
