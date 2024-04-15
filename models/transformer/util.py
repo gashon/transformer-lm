@@ -108,25 +108,6 @@ def cross_entropy_loss(logits: torch.FloatTensor, targets: torch.LongTensor) -> 
     return torch.mean(loss_per_example)
 
 
-    # if len(inputs.shape) == 3:
-    #     inputs = inputs.view(-1, inputs.size(-1))
-    #     targets = targets.view(-1)
-    #
-    # assert inputs.size(0) == targets.size(0)
-    #
-    # stable_logits = inputs - torch.max(inputs, dim=1, keepdim=True)[0]
-    # sum_logits = torch.sum(torch.exp(stable_logits), dim=1)
-    # sum_of_log_exp = torch.log(sum_logits)
-    #
-    # logits_of_true_class = torch.gather(stable_logits, dim=1, index=targets.unsqueeze(1)).squeeze(1)
-    # logits_of_true_class = logits_of_true_class.squeeze()
-    #
-    # loss_per_example = sum_of_log_exp - logits_of_true_class
-    # cross_entropy_mean = mean(loss_per_example)
-    #
-    # return cross_entropy_mean
-
-
 class AdamW(torch.optim.Optimizer):
     def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8, weight_decay=0.01):
         if lr < 0:
