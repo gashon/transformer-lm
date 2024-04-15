@@ -83,9 +83,9 @@ class CausalMultiHeadAttention(nn.Module):
         return torch.matmul(attn_output, self.output_proj.transpose(0, 1))
 
     def load_weights(self, weights):
-        self.q_heads.data = torch.cat([weights[f'q_heads.{i}.weight'] for i in range(self.num_heads)], dim=0)
-        self.k_heads.data = torch.cat([weights[f'k_heads.{i}.weight'] for i in range(self.num_heads)], dim=0)
-        self.v_heads.data = torch.cat([weights[f'v_heads.{i}.weight'] for i in range(self.num_heads)], dim=0)
+        self.q_heads.data.copy_(torch.cat([weights[f'q_heads.{i}.weight'] for i in range(self.num_heads)], dim=0))
+        self.k_heads.data.copy_(torch.cat([weights[f'k_heads.{i}.weight'] for i in range(self.num_heads)], dim=0))
+        self.v_heads.data.copy_(torch.cat([weights[f'v_heads.{i}.weight'] for i in range(self.num_heads)], dim=0))
 
         self.output_proj.data.copy_(weights['output_proj.weight'])
     

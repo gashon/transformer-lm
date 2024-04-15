@@ -67,8 +67,8 @@ class TransformerLM(nn.Module):
             block.load_weights(block_weights)
 
 
-        self.token_embedding.weight.data = weights['token_embeddings.weight']
-        self.position_embedding.weight.data = weights['position_embeddings.weight']
+        self.token_embedding.weight.data.copy_(weights['token_embeddings.weight'])
+        self.position_embedding.weight.data.copy_(weights['position_embeddings.weight'])
         self.norm.gain = weights['ln_final.weight']
         self.output_projection.weight.data.copy_(weights['lm_head.weight'])
 
