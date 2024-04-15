@@ -376,7 +376,7 @@ def run_get_batch(
         is the sampled input sequences, and the second tuple item is the corresponding
         language modeling labels.
     """
-    return create_data_batches(dataset, batch_size, context_length, device)
+    return TransformerLM.load_batch(dataset, batch_size, context_length, device)
 
 
 def run_softmax(in_features: torch.FloatTensor, dim: int) -> torch.FloatTensor:

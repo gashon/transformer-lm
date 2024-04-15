@@ -1,6 +1,8 @@
 import torch
 from torch import nn
 from torch.nn import functional as F
+import numpy as np
+import numpy.typing as npt
 
 from models.transformer.layers import TransformerBlock, RMSNorm
 
@@ -50,6 +52,32 @@ class TransformerLM(nn.Module):
         logits = self.output_projection(x)
         
         return logits
+    
+    def load_batch(
+        dataset: npt.NDArray, batch_size: int, context_length: int, device: str
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Load a batch of data from the dataset."""
+
+        if torch.cuda.is_available() and 'cuda' in device:
+            device = device
+        else:
+            device = 'cpu'  # Fallback to CPU if CUDA is not available or not requested
+
+
+        inputs = np.zeros((batch_size, context_length)) #, dtype=int32
+        target_labels = np.zeros((batch_size, context_length)) #, dtype=int32
+
+        l = len(dataset) - context_length
+        start_idx = np.random.randint(0, l, batch_size)
+        for row, idx in enumerate(start_idx):
+            
+            inputs[row] = dataset[idx: idx+ context_length]
+            target_labels[row] = dataset[idx+ 1 : idx+ context_length + 1]
+
+        inputs = torch.tensor(inputs, dtype=torch.long, device=device)
+        target_labels = torch.tensor(target_labels, dtype=torch.long, device=device)
+
+        return inputs, target_labels
 
     def load_weights(self, weights):
         # load weights into transformer blocks 
