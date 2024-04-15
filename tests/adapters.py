@@ -302,7 +302,7 @@ def run_transformer_lm(
     """
     model = TransformerLM(vocab_size, context_length, d_model, num_heads, d_ff, num_layers, attn_pdrop, residual_pdrop)
     model.load_weights(weights)
-    return model.forward(in_indices, weights, vocab_size, d_model)
+    return model.forward(in_indices)
 
 
 def run_rmsnorm(
@@ -491,7 +491,7 @@ def run_save_checkpoint(
         out: str | os.PathLike | BinaryIO | IO[bytes]
             Path or file-like object to serialize the model, optimizer, and iteration to.
     """
-    raise NotImplementedError
+    return TransformerLM.save_checkpoint(model, optimizer, iteration, out)
 
 
 def run_load_checkpoint(
@@ -515,7 +515,7 @@ def run_load_checkpoint(
     Returns:
         int, the previously-serialized number of iterations.
     """
-    raise NotImplementedError
+    return TransformerLM.load_checkpoint(src, model, optimizer)
 
 
 def get_tokenizer(

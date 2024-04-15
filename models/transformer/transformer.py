@@ -3,6 +3,8 @@ from torch import nn
 from torch.nn import functional as F
 import numpy as np
 import numpy.typing as npt
+from typing import IO, BinaryIO, Iterable, Optional, Type
+import os
 
 from models.transformer.layers import TransformerBlock, RMSNorm
 
@@ -29,7 +31,7 @@ class TransformerLM(nn.Module):
         self.norm = RMSNorm(d_model, eps=1e-5)
         self.output_projection = nn.Linear(d_model, vocab_size, bias=False)
         
-    def forward(self, input_ids, weights, vocab_size, d_model):
+    def forward(self, input_ids):
         # Generate token embeddings + position embeddings
         seq_length = input_ids.shape[1]
         position_ids = torch.arange(seq_length, dtype=torch.long)
@@ -52,7 +54,34 @@ class TransformerLM(nn.Module):
         logits = self.output_projection(x)
         
         return logits
-    
+
+    @staticmethod
+    def save_checkpoint(
+            model: torch.nn.Module,
+            optimizer: torch.optim.Optimizer,
+            iteration: int,
+            out: str | os.PathLike | BinaryIO | IO[bytes],
+        ):
+        checkpoint = {
+            'optimizer_state_dict': optimizer.state_dict(),
+            'model_state_dict': model.state_dict(),
+            'iteration': iteration,
+        }
+        torch.save(checkpoint, out)
+
+    @staticmethod
+    def load_checkpoint(
+        src: str | os.PathLike | BinaryIO | IO[bytes],
+        model: torch.nn.Module,
+        optimizer: torch.optim.Optimizer,
+    ):
+        loaded_checkpoint = torch.load(src)
+        optimizer.load_state_dict(loaded_checkpoint['optimizer_state_dict'])
+        model.load_state_dict(loaded_checkpoint['model_state_dict'])
+
+        return loaded_checkpoint['iteration']
+
+    @staticmethod
     def load_batch(
         dataset: npt.NDArray, batch_size: int, context_length: int, device: str
     ) -> tuple[torch.Tensor, torch.Tensor]:
@@ -61,11 +90,10 @@ class TransformerLM(nn.Module):
         if torch.cuda.is_available() and 'cuda' in device:
             device = device
         else:
-            device = 'cpu'  # Fallback to CPU if CUDA is not available or not requested
+            device = 'cpu'  
 
-
-        inputs = np.zeros((batch_size, context_length)) #, dtype=int32
-        target_labels = np.zeros((batch_size, context_length)) #, dtype=int32
+        inputs = np.zeros((batch_size, context_length)) 
+        target_labels = np.zeros((batch_size, context_length)) 
 
         l = len(dataset) - context_length
         start_idx = np.random.randint(0, l, batch_size)
