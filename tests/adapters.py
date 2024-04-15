@@ -4,15 +4,14 @@ from __future__ import annotations
 import os
 from typing import IO, BinaryIO, Iterable, Optional, Type
 
-import math
 import numpy.typing as npt
 import torch
-import torch.nn as nn
 
 from models.tokenizer.bpe_tokenizer import BPETokenizer 
 from models.tokenizer.tokenizer import Tokenizer
 
 from models.transformer.layers import CausalMultiHeadAttention, RMSNorm, TransformerBlock
+from models.transformer.transformer import TransformerLM
 
 from models.transformer.util import gelu, softmax, scaled_dot_product_attention, cross_entropy_loss, AdamW, cosine_learning_rate_schedule, clip_gradients, create_data_batches
 
@@ -97,7 +96,7 @@ def run_scaled_dot_product_attention(
         with the output of running your scaled dot product attention
         implementation with the provided key, query, and value tensors.
     """
-    return scaled_dot_product_attention(Q, K, V, mask, pdrop)
+    return mcaled_dot_product_attention(Q, K, V, mask, pdrop)
 
 
 def run_multihead_self_attention(
@@ -301,7 +300,31 @@ def run_transformer_lm(
         FloatTensor of shape (batch size, sequence_length, vocab_size) with the predicted unnormalized
         next-word distribution for each token.
     """
-    raise NotImplementedError
+    model = TransformerLM(vocab_size, context_length, d_model, num_heads, d_ff, num_layers, attn_pdrop, residual_pdrop)
+    # token_embedding_matrix = torch.nn.Embedding(vocab_size, d_model)
+    # token_embedding_matrix.weights = torch.nn.Parameter(weights['token_embeddings.weight']) 
+    # token_embeddings = token_embedding_matrix(in_indices)
+    # #token_embeddings = weights['token_embeddings.weight'][in_indices]
+    #
+    # position_ids = torch.arange(in_indices.shape[1]).repeat(in_indices.shape[0], 1)
+    #
+    # position_embedding_matrix = torch.nn.Embedding(vocab_size, d_model)
+    #
+    # position_embedding_matrix.weights = torch.nn.Parameter(weights['position_embeddings.weight']) 
+    # position_embeddings = position_embedding_matrix(position_ids)
+    #
+    # #position_embeddings = weights['position_embeddings.weight'][position_ids]
+    #
+    # input_embeddings = token_embeddings + position_embeddings
+    #
+    # print(vocab_size, context_length, d_model, num_heads, d_ff, num_layers, attn_pdrop, residual_pdrop)
+    # print(model.token_embedding.weight == weights['token_embeddings.weight'])
+    model.load_weights(weights)
+
+    # print("i", input_embeddings[4, 40, :5])
+    # assert torch.allclose(input_embeddings, res)
+
+    return model.forward(in_indices, weights, vocab_size, d_model)
 
 
 def run_rmsnorm(
