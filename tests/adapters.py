@@ -143,7 +143,14 @@ def run_multihead_self_attention(
         implementation with the given QKV projection weights and input features.
     """
     attn = CausalMultiHeadAttention(d_model, num_heads)
-    attn.load_weights(weights)
+
+    cat_weights = {}
+    cat_weights["q_proj.weight"] = torch.cat([weights[f"q_heads.{i}.weight"] for i in range((len(weights)-1)//3)], dim=0)
+    cat_weights["k_proj.weight"] = torch.cat([weights[f"k_heads.{i}.weight"] for i in range((len(weights)-1)//3)], dim=0)
+    cat_weights["v_proj.weight"] = torch.cat([weights[f"v_heads.{i}.weight"] for i in range((len(weights)-1)//3)], dim=0)
+    cat_weights["output_proj.weight"] = weights["output_proj.weight"]
+    attn.load_state_dict(cat_weights)
+
     return attn.forward(in_features)
 
 
@@ -211,7 +218,7 @@ def run_transformer_block(
         running the Transformer block on the input features.
     """
     block = TransformerBlock(d_model, num_heads, d_ff, attn_pdrop, residual_pdrop)
-    block.load_weights(weights)
+    block.load_state_dict(weights)
     output = block.forward(in_features)
     return output
 

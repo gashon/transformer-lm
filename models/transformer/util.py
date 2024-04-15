@@ -26,11 +26,11 @@ def scaled_dot_product_attention(q: torch.FloatTensor, k: torch.FloatTensor, v: 
         output: torch.FloatTensor
 
     """
-    scores = torch.matmul(q, k.transpose(-2, -1)) / np.sqrt(q.size(-1))
+    scores = torch.matmul(q, k.transpose(-2, -1)) / np.sqrt(q.shape[-1])
 
     # Apply mask to the scores
     if mask is not None:
-        scores.masked_fill_(mask, -1e9)
+        scores.masked_fill_(mask, -torch.inf)
 
     attn_probs = softmax(scores, dim=-1)
 
