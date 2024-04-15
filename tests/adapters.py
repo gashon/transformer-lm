@@ -143,28 +143,9 @@ def run_multihead_self_attention(
         torch.FloatTensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    batch_size, seq_len, _ = in_features.shape
-    
-    q_weights = torch.cat([weights[f'q_heads.{i}.weight'] for i in range(num_heads)], dim=0)
-    k_weights = torch.cat([weights[f'k_heads.{i}.weight'] for i in range(num_heads)], dim=0)
-    v_weights = torch.cat([weights[f'v_heads.{i}.weight'] for i in range(num_heads)], dim=0)
-    out_weights = weights['output_proj.weight']
-    
-    q = torch.matmul(in_features, q_weights.t()).view(batch_size, seq_len, num_heads, -1).transpose(1, 2)
-    k = torch.matmul(in_features, k_weights.t()).view(batch_size, seq_len, num_heads, -1).transpose(1, 2)
-    v = torch.matmul(in_features, v_weights.t()).view(batch_size, seq_len, num_heads, -1).transpose(1, 2)
-    
-    attn_scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(d_model // num_heads)
-    
-    causal_mask = torch.triu(torch.ones(seq_len, seq_len), diagonal=1).bool().to(in_features.device)
-    attn_scores = attn_scores.masked_fill(causal_mask.unsqueeze(0).unsqueeze(1), float('-inf'))
-    
-    attn_probs = nn.functional.softmax(attn_scores, dim=-1)
-    
-    attn_output = torch.matmul(attn_probs, v)
-    attn_output = attn_output.transpose(1, 2).contiguous().view(batch_size, seq_len, d_model)
-    
-    return torch.matmul(attn_output, out_weights.t())
+    attn = CausalMultiHeadAttention(d_model, num_heads)
+    attn.load_weights(weights)
+    return attn.forward(in_features)
 
 
 def run_transformer_block(
