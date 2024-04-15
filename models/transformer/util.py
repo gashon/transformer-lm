@@ -1,13 +1,12 @@
 from typing import Optional
 import numpy as np
-import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from collections.abc import Callable
 from typing import Optional
 
-def scaled_dot_product_attention(q: torch.FloatTensor, k: torch.FloatTensor, v: torch.FloatTensor, mask: Optional[torch.BoolTensor] = None, pdrop: Optional[float]= 0.0, dk: Optional[int] = None) -> torch.FloatTensor:
+def scaled_dot_product_attention(q: torch.FloatTensor, k: torch.FloatTensor, v: torch.FloatTensor, mask: Optional[torch.BoolTensor] = None, pdrop: Optional[float]= 0.0) -> torch.FloatTensor:
     """Compute scaled dot-product attention.
         
     Args:
@@ -26,21 +25,18 @@ def scaled_dot_product_attention(q: torch.FloatTensor, k: torch.FloatTensor, v: 
         output: torch.FloatTensor
 
     """
-    d_k = q.size(-1) if dk is None else dk
-    scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(d_k)
+    scores = torch.matmul(q, k.transpose(-2, -1)) / np.sqrt(q.size(-1))
 
     # Apply mask to the scores
     if mask is not None:
-        scores = scores.masked_fill(mask, float('-inf'))
+        scores.masked_fill_(mask, -1e9)
 
     attn_probs = F.softmax(scores, dim=-1)
 
     if pdrop and pdrop > 0.0:
-        dropout = nn.Dropout(pdrop)
-        attn_probs = dropout(attn_probs)
+        attn_probs = F.dropout(input=attn_probs, p=pdrop)
 
     output = torch.matmul(attn_probs, v)
-
     return output 
 
 def gelu(features: torch.FloatTensor) -> torch.FloatTensor:
