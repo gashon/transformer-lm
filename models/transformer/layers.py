@@ -9,73 +9,41 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class CausalMultiHeadAttention(nn.Module):
-    def __init__(self, d_model, num_heads, attn_pdrop=None, weights=None):
+    def __init__(self, d_model: int, num_heads: int, attn_pdrop: float = None):
         super().__init__()
         assert d_model % num_heads == 0, "d_model must be divisible by num_heads"
-
+        
         self.d_model = d_model
         self.num_heads = num_heads
-        self.dk = d_model // num_heads
-        self.dv = d_model // num_heads
-
-        self.query_projection = nn.Linear(d_model, d_model)
-        self.key_projection = nn.Linear(d_model, d_model)
-        self.value_projection = nn.Linear(d_model, d_model)
-        self.output_projection = nn.Linear(d_model, d_model)
+        self.d_head = d_model // num_heads
         
-        self.attn_pdrop = attn_pdrop if attn_pdrop is not None else 0.0
+        self.q_proj = nn.Linear(d_model, d_model)
+        self.k_proj = nn.Linear(d_model, d_model)
+        self.v_proj = nn.Linear(d_model, d_model)
+        self.out_proj = nn.Linear(d_model, d_model)
         
-        self.dropout = nn.Dropout(self.attn_pdrop)
-
-        if weights is not None:
-            self.load_weights(weights)
-
-
-    def forward(self, x):
+        self.attn_dropout = nn.Dropout(attn_pdrop) if attn_pdrop is not None else nn.Identity()
+        
+    def forward(self, x: torch.Tensor, mask: torch.Tensor = None) -> torch.Tensor:
         batch_size, seq_len, _ = x.shape
         
-        # Project and split into heads
-        queries = self.query_projection(x).view(batch_size, seq_len, self.num_heads, self.dk)
-        keys = self.key_projection(x).view(batch_size, seq_len, self.num_heads, self.dk)
-        values = self.value_projection(x).view(batch_size, seq_len, self.num_heads, self.dv)
+        q = self.q_proj(x).view(batch_size, seq_len, self.num_heads, self.d_head).transpose(1, 2)
+        k = self.k_proj(x).view(batch_size, seq_len, self.num_heads, self.d_head).transpose(1, 2)
+        v = self.v_proj(x).view(batch_size, seq_len, self.num_heads, self.d_head).transpose(1, 2)
         
-        # Transpose to get dimensions batch_size, num_heads, seq_len, dk or dv
-        queries = queries.transpose(1, 2)
-        keys = keys.transpose(1, 2)
-        values = values.transpose(1, 2)
+        attn_scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.d_head)
         
-        # Create mask for causal attention
-        mask = torch.triu(torch.ones((seq_len, seq_len), device=x.device, dtype=torch.bool), diagonal=1)
-        mask = mask.unsqueeze(0).unsqueeze(0)  # Add batch and head dimension
+        if mask is not None:
+            attn_scores = attn_scores.masked_fill(mask == 0, float('-inf'))
         
-        # Scaled dot-product attention
-        attn_output = scaled_dot_product_attention(queries, keys, values, mask, self.attn_pdrop)
+        attn_probs = nn.functional.softmax(attn_scores, dim=-1)
+        attn_probs = self.attn_dropout(attn_probs)
+        
+        attn_output = torch.matmul(attn_probs, v)
         attn_output = attn_output.transpose(1, 2).contiguous().view(batch_size, seq_len, self.d_model)
-
-        # Final output projection
-        output = self.output_projection(attn_output)
-        return output
-
-    def load_weights(self, weights):
-        """ Load weights from a dictionary """
-        for i in range(self.num_heads):
-            self.query_projection.weight.data[:, i*self.dk:(i+1)*self.dk] = weights[f"q_heads.{i}.weight"].t()
-            self.key_projection.weight.data[:, i*self.dk:(i+1)*self.dk] = weights[f"k_heads.{i}.weight"].t()
-            self.value_projection.weight.data[:, i*self.dk:(i+1)*self.dk] = weights[f"v_heads.{i}.weight"].t()
         
-        self.output_projection.weight.data = weights["output_proj.weight"]
-
-        # Assuming no bias in the linear layers, or setting them to zero if they exist.
-        if self.query_projection.bias is not None:
-            self.query_projection.bias.data.fill_(0)
-        if self.key_projection.bias is not None:
-            self.key_projection.bias.data.fill_(0)
-        if self.value_projection.bias is not None:
-            self.value_projection.bias.data.fill_(0)
-        if self.output_projection.bias is not None:
-            self.output_projection.bias.data.fill_(0)
-
-
+        return self.out_proj(attn_output)
+    
 class RMSNorm(nn.Module):
     def __init__(self, d_model: int, eps: float, gain=None):
         super(RMSNorm, self).__init__()

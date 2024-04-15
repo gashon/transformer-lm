@@ -4,15 +4,17 @@ from __future__ import annotations
 import os
 from typing import IO, BinaryIO, Iterable, Optional, Type
 
+import math
 import numpy.typing as npt
 import torch
+import torch.nn as nn
 
 from models.tokenizer.bpe_tokenizer import BPETokenizer 
 from models.tokenizer.tokenizer import Tokenizer
 
 from models.transformer.layers import CausalMultiHeadAttention, RMSNorm
 
-from models.transformer.util import gelu, softmax, scaled_dot_product_attention, cross_entropy_loss, AdamW, cosine_learning_rate_schedule, clip_gradients
+from models.transformer.util import gelu, softmax, scaled_dot_product_attention, cross_entropy_loss, AdamW, cosine_learning_rate_schedule, clip_gradients, create_data_batches
 
 def run_positionwise_feedforward(
     d_model: int,
@@ -141,29 +143,28 @@ def run_multihead_self_attention(
         torch.FloatTensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    new_weights = {
-        "output_proj.weight": weights.get("output_proj.weight")  # Safely get the output projection weights
-    }
-
-    # Iterate through each head and safely get the weights for q, k, and v projections
-    for i in range(num_heads):
-        q_key = f"q_heads.{i}.weight"
-        k_key = f"k_heads.{i}.weight"
-        v_key = f"v_heads.{i}.weight"
-
-        if q_key in weights and k_key in weights and v_key in weights:
-            new_weights[q_key] = weights[q_key]
-            new_weights[k_key] = weights[k_key]
-            new_weights[v_key] = weights[v_key]
-        else:
-            # Log or handle missing keys appropriately
-            print(f"Warning: Missing weights for head {i}, keys checked were {q_key}, {k_key}, {v_key}.")
-
-    mha = CausalMultiHeadAttention(d_model, num_heads, weights=new_weights)
+    batch_size, seq_len, _ = in_features.shape
     
-    output = mha(in_features)
+    q_weights = torch.cat([weights[f'q_heads.{i}.weight'] for i in range(num_heads)], dim=0)
+    k_weights = torch.cat([weights[f'k_heads.{i}.weight'] for i in range(num_heads)], dim=0)
+    v_weights = torch.cat([weights[f'v_heads.{i}.weight'] for i in range(num_heads)], dim=0)
+    out_weights = weights['output_proj.weight']
     
-    return output
+    q = torch.matmul(in_features, q_weights.t()).view(batch_size, seq_len, num_heads, -1).transpose(1, 2)
+    k = torch.matmul(in_features, k_weights.t()).view(batch_size, seq_len, num_heads, -1).transpose(1, 2)
+    v = torch.matmul(in_features, v_weights.t()).view(batch_size, seq_len, num_heads, -1).transpose(1, 2)
+    
+    attn_scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(d_model // num_heads)
+    
+    causal_mask = torch.triu(torch.ones(seq_len, seq_len), diagonal=1).bool().to(in_features.device)
+    attn_scores = attn_scores.masked_fill(causal_mask.unsqueeze(0).unsqueeze(1), float('-inf'))
+    
+    attn_probs = nn.functional.softmax(attn_scores, dim=-1)
+    
+    attn_output = torch.matmul(attn_probs, v)
+    attn_output = attn_output.transpose(1, 2).contiguous().view(batch_size, seq_len, d_model)
+    
+    return torch.matmul(attn_output, out_weights.t())
 
 
 def run_transformer_block(
@@ -390,7 +391,7 @@ def run_get_batch(
         is the sampled input sequences, and the second tuple item is the corresponding
         language modeling labels.
     """
-    raise NotImplementedError
+    return create_data_batches(dataset, batch_size, context_length, device)
 
 
 def run_softmax(in_features: torch.FloatTensor, dim: int) -> torch.FloatTensor:
