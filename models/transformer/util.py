@@ -90,28 +90,42 @@ def cross_entropy_loss(logits: torch.FloatTensor, targets: torch.LongTensor) -> 
         loss: torch.FloatTensor
             Scalar tensor representing the cross-entropy loss.
     """
-    # Ensure logits are float32 for numerical stability
-    logits = logits.float()
 
-    # Subtract the maximum value from logits along vocab dimension for numerical stability
-    max_logits = torch.max(logits, dim=1, keepdim=True)[0]
-    logits = logits - max_logits
+    if len(logits.shape) == 3:
+        logits = logits.view(-1, logits.size(-1))
+        targets = targets.view(-1)
 
-    # Compute the exponentials of the logits and their sum
-    exp_logits = torch.exp(logits)
-    sum_exp_logits = torch.sum(exp_logits, dim=1, keepdim=True)
+    assert logits.size(0) == targets.size(0)
 
-    # Compute softmax probabilities
-    softmax_probs = exp_logits / sum_exp_logits
+    s_logits = logits - torch.max(logits, dim=1, keepdim=True)[0]
+    sum_logits = torch.sum(torch.exp(s_logits), dim=1)
+    sum_log_exp = torch.log(sum_logits)
 
-    # Gather the softmax probabilities for the correct classes
-    target_probs = softmax_probs.gather(1, targets.unsqueeze(1)).squeeze()
+    logits_true_class = torch.gather(s_logits, dim=1, index=targets.unsqueeze(1)).squeeze(1)
+    logits_true_class = logits_true_class.squeeze()
 
-    # Compute the negative log likelihood
-    neg_log_likelihood = -torch.log(target_probs + 1e-9)  # Adding a small value to prevent log(0)
+    loss_per_example = sum_log_exp - logits_true_class
+    return torch.mean(loss_per_example)
 
-    # Return the average loss over the batch
-    return torch.mean(neg_log_likelihood)
+
+    # if len(inputs.shape) == 3:
+    #     inputs = inputs.view(-1, inputs.size(-1))
+    #     targets = targets.view(-1)
+    #
+    # assert inputs.size(0) == targets.size(0)
+    #
+    # stable_logits = inputs - torch.max(inputs, dim=1, keepdim=True)[0]
+    # sum_logits = torch.sum(torch.exp(stable_logits), dim=1)
+    # sum_of_log_exp = torch.log(sum_logits)
+    #
+    # logits_of_true_class = torch.gather(stable_logits, dim=1, index=targets.unsqueeze(1)).squeeze(1)
+    # logits_of_true_class = logits_of_true_class.squeeze()
+    #
+    # loss_per_example = sum_of_log_exp - logits_of_true_class
+    # cross_entropy_mean = mean(loss_per_example)
+    #
+    # return cross_entropy_mean
+
 
 class AdamW(torch.optim.Optimizer):
     def __init__(self, params, lr=1e-3, betas=(0.9, 0.999), eps=1e-8, weight_decay=0.01):
