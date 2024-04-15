@@ -36,8 +36,8 @@ class TransformerBlock(nn.Module):
         self.mha.output_proj.data.copy_(weights['attn.output_proj.weight'])
 
         # Load weights for RMSNorm layers
-        self.norm1.gain.data.copy_(weights['ln1.weight'])
-        self.norm2.gain.data.copy_(weights['ln2.weight'])
+        self.norm1.gain = weights['ln1.weight']
+        self.norm2.gain = weights['ln2.weight']
 
         # Load weights for feed-forward network
         self.ff.w1.weight.data.copy_(weights['ffn.w1.weight'])
@@ -94,13 +94,15 @@ class RMSNorm(nn.Module):
         super(RMSNorm, self).__init__()
         self.d_model = d_model
         self.eps = eps 
-        self.gain = nn.Parameter(torch.ones(d_model)) if gain is None else gain 
+        self.gain = gain
 
     def forward(self, x: torch.FloatTensor):
         rms = torch.sqrt(torch.mean(x ** 2, dim=-1, keepdim=True) + self.eps)
         x_normed = x / rms
-        x_scaled = self.gain * x_normed
-        return x_scaled
+        if self.gain is None:
+            return x_normed
+
+        return self.gain * x_normed 
 
 
 class PositionWiseFeedForward(nn.Module):

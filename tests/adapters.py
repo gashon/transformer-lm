@@ -301,29 +301,7 @@ def run_transformer_lm(
         next-word distribution for each token.
     """
     model = TransformerLM(vocab_size, context_length, d_model, num_heads, d_ff, num_layers, attn_pdrop, residual_pdrop)
-    # token_embedding_matrix = torch.nn.Embedding(vocab_size, d_model)
-    # token_embedding_matrix.weights = torch.nn.Parameter(weights['token_embeddings.weight']) 
-    # token_embeddings = token_embedding_matrix(in_indices)
-    # #token_embeddings = weights['token_embeddings.weight'][in_indices]
-    #
-    # position_ids = torch.arange(in_indices.shape[1]).repeat(in_indices.shape[0], 1)
-    #
-    # position_embedding_matrix = torch.nn.Embedding(vocab_size, d_model)
-    #
-    # position_embedding_matrix.weights = torch.nn.Parameter(weights['position_embeddings.weight']) 
-    # position_embeddings = position_embedding_matrix(position_ids)
-    #
-    # #position_embeddings = weights['position_embeddings.weight'][position_ids]
-    #
-    # input_embeddings = token_embeddings + position_embeddings
-    #
-    # print(vocab_size, context_length, d_model, num_heads, d_ff, num_layers, attn_pdrop, residual_pdrop)
-    # print(model.token_embedding.weight == weights['token_embeddings.weight'])
     model.load_weights(weights)
-
-    # print("i", input_embeddings[4, 40, :5])
-    # assert torch.allclose(input_embeddings, res)
-
     return model.forward(in_indices, weights, vocab_size, d_model)
 
 
