@@ -2,11 +2,12 @@ from typing import Optional
 import numpy as np
 import math
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from collections.abc import Callable
 from typing import Optional
 
-def scaled_dot_product_attention(q: torch.FloatTensor, k: torch.FloatTensor, v: torch.FloatTensor, mask: Optional[torch.BoolTensor] = None, pdrop: Optional[float]= 0.0):
+def scaled_dot_product_attention(q: torch.FloatTensor, k: torch.FloatTensor, v: torch.FloatTensor, mask: Optional[torch.BoolTensor] = None, pdrop: Optional[float]= 0.0, dk: Optional[int] = None) -> torch.FloatTensor:
     """Compute scaled dot-product attention.
         
     Args:
@@ -25,20 +26,20 @@ def scaled_dot_product_attention(q: torch.FloatTensor, k: torch.FloatTensor, v: 
         output: torch.FloatTensor
 
     """
-    d_k = q.size(-1)
-    scores = torch.matmul(q, k.transpose(-2, -1)) / torch.sqrt(torch.tensor(d_k).float())
+    d_k = q.size(-1) if dk is None else dk
+    scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(d_k)
 
     # Apply mask to the scores
     if mask is not None:
-        bool_mask = mask.bool()
-        scores = scores.masked_fill(bool_mask, float('-inf'))
+        scores = scores.masked_fill(mask, float('-inf'))
 
-    attn_weights = F.softmax(scores, dim=-1)
+    attn_probs = F.softmax(scores, dim=-1)
 
     if pdrop and pdrop > 0.0:
-        attn_weights = F.dropout(attn_weights, p=pdrop)
+        dropout = nn.Dropout(pdrop)
+        attn_probs = dropout(attn_probs)
 
-    output = torch.matmul(attn_weights, v)
+    output = torch.matmul(attn_probs, v)
 
     return output 
 

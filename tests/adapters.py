@@ -12,7 +12,7 @@ import torch.nn as nn
 from models.tokenizer.bpe_tokenizer import BPETokenizer 
 from models.tokenizer.tokenizer import Tokenizer
 
-from models.transformer.layers import CausalMultiHeadAttention, RMSNorm
+from models.transformer.layers import CausalMultiHeadAttention, RMSNorm, TransformerBlock
 
 from models.transformer.util import gelu, softmax, scaled_dot_product_attention, cross_entropy_loss, AdamW, cosine_learning_rate_schedule, clip_gradients, create_data_batches
 
@@ -211,7 +211,12 @@ def run_transformer_block(
         FloatTensor of shape (batch_size, sequence_length, d_model) with the output of
         running the Transformer block on the input features.
     """
-    raise NotImplementedError
+    block = TransformerBlock(d_model, num_heads, d_ff, attn_pdrop, residual_pdrop)
+    block.load_weights(weights)
+    block.eval()
+    output = block.forward(in_features)
+    print("Output of Transformer Block:", output.shape)
+    return output
 
 
 def run_transformer_lm(
