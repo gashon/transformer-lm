@@ -31,7 +31,7 @@ def scaled_dot_product_attention(q: torch.FloatTensor, k: torch.FloatTensor, v: 
     if mask is not None:
         scores.masked_fill_(mask, -1e9)
 
-    attn_probs = F.softmax(scores, dim=-1)
+    attn_probs = softmax(scores, dim=-1)
 
     if pdrop and pdrop > 0.0:
         attn_probs = F.dropout(input=attn_probs, p=pdrop)
