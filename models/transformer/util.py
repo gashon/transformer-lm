@@ -30,7 +30,8 @@ def scaled_dot_product_attention(q: torch.FloatTensor, k: torch.FloatTensor, v: 
 
     # Apply mask to the scores
     if mask is not None:
-        scores = scores.masked_fill(mask, float('-inf'))
+        bool_mask = mask.bool()
+        scores = scores.masked_fill(bool_mask, float('-inf'))
 
     attn_weights = F.softmax(scores, dim=-1)
 
