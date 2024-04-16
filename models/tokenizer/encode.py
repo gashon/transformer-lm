@@ -17,11 +17,9 @@ fname = {
 
 def main(dataset: str, split: str):
     if dataset == "corpus":
-        with open("tests/fixtures/corpus.en", "r") as f:
-            text = f.read()
+        input_file = "tests/fixtures/corpus.en"
     else:
-        with open(f"/data/{fname[dataset+'/'+split]}", "r") as f:
-            text = f.read()
+        input_file = f"/data/{fname[dataset+'/'+split]}"
 
     tokenizer = Tokenizer.from_files(
         vocab_filepath=f"data/tokenizer/{dataset}-vocab.pkl",
@@ -29,9 +27,14 @@ def main(dataset: str, split: str):
         special_tokens=["<|endoftext|>"],
     )
 
-    tokens = tokenizer.encode(text)
-    pt = np.array(tokens, dtype=np.uint16)
-
+    token_ids = []
+    with open(input_file, "r", encoding="utf-8") as f:
+        while True:
+            text = f.read(1024 * 1024)  # Read in 1 MB chunks
+            if not text:
+                break
+            token_ids.extend(tokenizer.encode_iterable([text]))
+    pt = np.array(token_ids, dtype=np.uint16)
     torch.save(pt, f"data/tokenizer/{dataset}-tokens-{split}.pt", pickle_protocol=4)
 
 

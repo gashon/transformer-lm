@@ -95,7 +95,6 @@ def train(
 
 
 def main():
-    wandb.init(project="transformer from scratch", entity="gashon")
     torch.manual_seed(42)
 
     parser = argparse.ArgumentParser(
@@ -125,7 +124,10 @@ def main():
     parser.add_argument("--num_val_batches", type=int, default=2)
     args = parser.parse_args()
 
+    wandb.init(project="transformer from scratch", entity="gashon", config=args)
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     print(f"Using device: {device}")
 
     train_data = torch.load(
