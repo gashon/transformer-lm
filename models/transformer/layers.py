@@ -52,7 +52,9 @@ class CausalMultiHeadAttention(nn.Module):
         keys = keys.view(batch, seq_len, self.num_heads, self.dk).transpose(1, 2)
         values = values.view(batch, seq_len, self.num_heads, self.dk).transpose(1, 2)
 
-        mask = torch.triu(torch.ones((seq_len, seq_len)).bool(), diagonal=1)
+        mask = torch.triu(torch.ones((seq_len, seq_len)).bool(), diagonal=1).to(
+            x.device
+        )
         attn = scaled_dot_product_attention(
             queries, keys, values, mask=mask, pdrop=self.attn_pdrop
         )
