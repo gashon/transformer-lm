@@ -24,8 +24,7 @@ python3 train.py \
 	--lr_min 0.00001 \
 	--t_warmup 500 \
 	--t_cos 10000 \
-	--epochs 100 \
-	--train_batch_size 32 \
+	--train_batch_size 64 \
 	--val_batch_size 32 \
-	--num_train_batches 50 \
+	--num_steps 6000 \
 	--num_val_batches 10
