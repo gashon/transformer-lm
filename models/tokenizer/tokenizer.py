@@ -1,23 +1,23 @@
-import collections
-from typing import Iterable, Iterator, List, Tuple, Dict
+import collections from typing import Iterable, Iterator, List, Tuple, Dict
 import os
 import pickle
 import regex as re
 
 from models.tokenizer.train import train_bpe
+from models.tokenizer.vocab import Vocab
 
 
 class Tokenizer:
     def __init__(
         self,
-        vocab: Dict[int, bytes],
+        vocab: Vocab,
         merges: List[Tuple[bytes, bytes]],
         special_tokens: List[str] = [],
     ):
         self.vocab = vocab
-        self.vocab_inv = {v: k for k, v in self.vocab.items()}
-        self.special_tokens = special_tokens or []
-        self.merges = collections.defaultdict(int)
+        self.vocab_inv = vocab.get_inv()
+        self.special_tokens = special_tokens 
+        self.merges = collections.defaultdict(int) 
         for i, (a, b) in enumerate(merges):
             self.merges[(a, b)] = i
 
@@ -33,7 +33,7 @@ class Tokenizer:
         # Add special tokens to vocabulary if not present
         for token in self.special_tokens:
             if token.encode("utf-8") not in self.vocab_inv:
-                self.vocab[len(self.vocab)] = token.encode("utf-8")
+                self.vocab.add_token(token.encode("utf-8"))
                 self.vocab_inv[token.encode("utf-8")] = len(self.vocab) - 1
 
     @classmethod
@@ -51,7 +51,7 @@ class Tokenizer:
         cls,
         vocab_filepath: str,
         merges_filepath: str,
-        special_tokens: List[str] | None = None,
+        special_tokens: List[str] = [],
     ) -> "Tokenizer":
         return cls(
             pickle.load(open(vocab_filepath, "rb")),
