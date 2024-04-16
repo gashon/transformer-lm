@@ -1,9 +1,8 @@
 import argparse
 import torch
-import numpy as np
 from tqdm import tqdm
 import os
-from torch.utils.data import DataLoader, Dataset
+import wandb
 
 from models.tokenizer.tokenizer import Tokenizer
 from models.transformer.transformer import TransformerLM
@@ -35,6 +34,7 @@ def train(
     train_gen = torch.Generator().manual_seed(42)
     valid_gen = torch.Generator().manual_seed(42)
     best_val_loss = float("inf")
+
     for epoch in range(epochs):
         model.train()
         total_train_loss = 0
@@ -55,9 +55,13 @@ def train(
             scheduler.step()
 
             total_train_loss += loss.item()
+            wandb.log({"train_loss": loss.item()})  # Log training loss
 
         average_train_loss = total_train_loss / num_train_batches
         print(f"Training Loss: {average_train_loss:.4f}")
+        wandb.log(
+            {"average_train_loss": average_train_loss}
+        )  # Log average training loss
 
         model.eval()
         total_valid_loss = 0
@@ -70,9 +74,13 @@ def train(
                 logits = model(inputs)
                 valid_loss = cross_entropy_loss(logits, targets)
                 total_valid_loss += valid_loss.item()
+                wandb.log({"valid_loss": valid_loss.item()})  # Log validation loss
 
         average_valid_loss = total_valid_loss / num_val_batches
         print(f"Validation Loss: {average_valid_loss:.4f}")
+        wandb.log(
+            {"average_valid_loss": average_valid_loss}
+        )  # Log average validation loss
 
         if average_valid_loss < best_val_loss:
             best_val_loss = average_valid_loss
@@ -84,6 +92,8 @@ def train(
 
 
 def main():
+    wandb.init(project="transformer from scratch", entity="gashon")
+
     parser = argparse.ArgumentParser(
         description="Train a Transformer model with custom hyperparameters and utilities."
     )
