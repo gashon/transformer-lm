@@ -1,5 +1,6 @@
 
 1. Run the encoding script on both datasets.
-2. Load encoded datasets into trainer (with np.mmap)
+2. Train model
+3. Generate decodings
 
 

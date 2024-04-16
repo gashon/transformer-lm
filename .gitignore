@@ -143,3 +143,4 @@ output/
 
 *.out
 *.err
+wandb/

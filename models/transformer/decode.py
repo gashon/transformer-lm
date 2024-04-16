@@ -42,7 +42,7 @@ def decode(model, tokenizer, prompt, max_length, temperature=1.0, top_p=0.9):
             probs = top_p_sampling(probs, top_p=top_p)
             next_token_id = torch.multinomial(probs, num_samples=1).item()
             generated.append(next_token_id)
-            if next_token_id == tokenizer.eos_token_id:
+            if next_token_id == 0:
                 break
             input_ids = torch.cat(
                 (input_ids, torch.tensor([[next_token_id]], dtype=torch.long)), dim=1
@@ -53,20 +53,21 @@ def decode(model, tokenizer, prompt, max_length, temperature=1.0, top_p=0.9):
     return generated_text
 
 
-def load_model(checkpoint_path: str):
+def load_model(dataset: str):
+    # python3 train.py --dataset "corpus" --vocab_size 500 --ctx_len 128 --d_model 128 --num_layers 2 --num_heads 4 --d_ff 512 --attn_pdrop 0.05 --residual_pdrop 0.05 --lr_max 0.007 --lr_min 0.0001 --t_warmup 10 --t_cos 200 --epochs 50 --train_batch_size 20 --val_batch_size 16 --num_train_batches 20 --num_val_batches 5
+
     lm = TransformerLM(
-        # arbitrary values until load
-        vocab_size=1000,
-        context_length=512,
-        num_layers=6,
-        d_model=256,
-        num_heads=8,
-        d_ff=1024,
-        attn_pdrop=0.1,
-        residual_pdrop=0.1,
+        vocab_size=500,
+        context_length=128,
+        num_layers=2,
+        d_model=128,
+        num_heads=4,
+        d_ff=512,
+        attn_pdrop=0.05,
+        residual_pdrop=0.05,
     )
 
-    load_checkpoint(checkpoint_path, lm, None)
+    load_checkpoint(f"checkpoints/{dataset}_best.pth", lm, None)
 
     return lm
 
@@ -110,21 +111,21 @@ def main():
         help="Top-p value for nucleus sampling. Lower is more focused.",
     )
     parser.add_argument(
-        "--model_checkpoint_path",
+        "--model_dataset",
         type=str,
         required=True,
-        help="Path to the model checkpoint.",
+        help="Dataset used to train the model (tiny | owt | corpus).",
     )
     parser.add_argument(
         "--tokenizer_dataset",
         type=str,
         required=True,
-        help="Dataset used to train the tokenizer (tiny | owt).",
+        help="Dataset used to train the tokenizer (tiny | owt | corpus).",
     )
 
     args = parser.parse_args()
 
-    model = load_model(args.model_checkpoint_path)
+    model = load_model(args.model_dataset)
     tokenizer = load_tokenizer(args.tokenizer_dataset)
 
     # Generate text
@@ -137,3 +138,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# sample usage:
+# python3 -m models.transformer.decode --prompt "Once upon a time," --max_length 100 --temperature 0.8 --top_p 0.85 --model_dataset "corpus" --tokenizer_dataset "corpus"
