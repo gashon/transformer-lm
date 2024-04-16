@@ -130,7 +130,7 @@ def main():
         default=False,
         help="Resume training from the latest checkpoint.",
     )
-    parser.add_argument("--num_steps", type=int, default=50000)
+    parser.add_argument("--num_steps", type=int, default=12800000 // 256)
     parser.add_argument("--train_batch_size", type=int, default=128)
     parser.add_argument("--val_batch_size", type=int, default=128)
     parser.add_argument("--num_val_batches", type=int, default=2)
