@@ -146,10 +146,10 @@ class Tokenizer:
 
     def save(self, path: str, prefix: str = ""):
         os.makedirs(path, exist_ok=True)
-        vocab_path = os.path.join(path, prefix + "vocab.pkl")
-        merges_path = os.path.join(path, prefix + "merges.pkl")
+        vocab_path = os.path.join(path, prefix + "-vocab.pkl")
+        merges_path = os.path.join(path, prefix + "-merges.pkl")
 
         with open(vocab_path, "wb+") as f:
-            pickle.dump(self._vocab, f)
+            pickle.dump(self.vocab, f)
         with open(merges_path, "wb+") as f:
-            pickle.dump(self._merges, f)
+            pickle.dump(self.merges, f)
