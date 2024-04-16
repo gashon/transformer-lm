@@ -1,6 +1,10 @@
 import collections
 import regex as re
 from typing import List, Tuple, Dict, Set
+from tqdm import tqdm
+import time
+import logging
+
 from models.tokenizer.vocab import Vocab
 
 
@@ -134,17 +138,45 @@ def train_bpe(input_path: str, vocab_size: int, special_tokens: List[str] = []):
         re.UNICODE,
     )
 
+    start_time = time.time()
+    logging.info("Creating vocab")
     vocab = Vocab(special_tokens=special_tokens)
+    logging.info("Took %s seconds to create vocab", round(time.time() - start_time, 2))
+
+    start_time = time.time()
+    logging.info("Extracting subword frequencies")
     subword_frequencies = extract_subword_frequencies(
         input_path, set(special_tokens), pattern
     )
+    logging.info(
+        "Took %s seconds to extract subword frequencies",
+        round(time.time() - start_time, 2),
+    )
+
+    start_time = time.time()
+    logging.info("Encoding subwords")
     encoded_subwords = encode_subwords(list(subword_frequencies.keys()))
+    logging.info(
+        "Took %s seconds to encode subwords", round(time.time() - start_time, 2)
+    )
+
+    start_time = time.time()
+    logging.info("Calculating byte pair frequencies")
     byte_pair_frequencies, token_indices = calculate_byte_pair_frequencies(
         encoded_subwords, subword_frequencies
     )
-    merges = []
+    logging.info(
+        "Took %s seconds to calculate byte pair frequencies",
+        round(time.time() - start_time, 2),
+    )
 
-    while len(vocab) < vocab_size and byte_pair_frequencies:
+    start_time = time.time()
+    logging.info("Merging subwords")
+    merges = []
+    for _ in tqdm(range(vocab_size - len(vocab))):
+        if len(byte_pair_frequencies) == 0:
+            break
+
         best_pair = max(
             byte_pair_frequencies, key=lambda x: (byte_pair_frequencies[x], x)
         )
@@ -187,5 +219,8 @@ def train_bpe(input_path: str, vocab_size: int, special_tokens: List[str] = []):
         byte_pair_frequencies.pop(best_pair)
         token_indices.pop(best_pair)
         merges.append(best_pair)
+    logging.info(
+        "Took %s seconds to merge subwords", round(time.time() - start_time, 2)
+    )
 
     return vocab.get_idx_to_token(), merges
