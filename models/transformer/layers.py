@@ -4,18 +4,24 @@ import torch.nn.functional as F
 
 from models.transformer.util import scaled_dot_product_attention, softmax, gelu
 
+
 class TransformerBlock(nn.Module):
     def __init__(self, d_model, num_heads, d_ff, attn_pdrop=None, residual_pdrop=None):
         super(TransformerBlock, self).__init__()
         self.ln1 = RMSNorm(d_model, eps=1e-5)
         self.ln2 = RMSNorm(d_model, eps=1e-5)
         self.attn = CausalMultiHeadAttention(d_model, num_heads, attn_pdrop)
-        self.dropout= nn.Dropout(residual_pdrop, inplace=False) if residual_pdrop is not None else nn.Identity()
+        self.dropout = (
+            nn.Dropout(residual_pdrop, inplace=False)
+            if residual_pdrop is not None
+            else nn.Identity()
+        )
         self.ffn = PositionWiseFeedForward(d_model, d_ff)
 
     def forward(self, x):
         y = x + self.dropout(self.attn(self.ln1(x)))
         return y + self.dropout(self.ffn(self.ln2(y)))
+
 
 class CausalMultiHeadAttention(nn.Module):
     def __init__(self, d_model, num_heads, attn_pdrop=None):
@@ -53,15 +59,16 @@ class CausalMultiHeadAttention(nn.Module):
 
         attn = attn.transpose(1, 2)
         attn = attn.reshape(batch, seq_len, -1)
-        return self.output_proj(attn) 
+        return self.output_proj(attn)
+
 
 class RMSNorm(nn.Module):
     def __init__(self, d_model: int, eps: float = 1e-5, gain=None):
         super(RMSNorm, self).__init__()
         self.d_model = d_model
         self.weight = nn.Parameter(torch.zeros((d_model,)))
-        self.eps = eps 
-        self.gain = torch.ones(d_model) if gain is None else gain 
+        self.eps = eps
+        self.gain = torch.ones(d_model) if gain is None else gain
 
     def forward(self, x: torch.FloatTensor):
 
@@ -70,17 +77,17 @@ class RMSNorm(nn.Module):
         d = torch.sqrt(
             (1 / self.d_model) * torch.square(x).sum(-1, keepdim=True) + self.eps
         )
-        return n / d  
+        return n / d
+
 
 class PositionWiseFeedForward(nn.Module):
     def __init__(self, d_model: int, d_ff: int):
         super(PositionWiseFeedForward, self).__init__()
         self.w1 = nn.Linear(d_model, d_ff, bias=False)
         self.w2 = nn.Linear(d_ff, d_model, bias=False)
-        self.activation = gelu 
+        self.activation = gelu
 
     def forward(self, x: torch.FloatTensor):
         x = self.activation(self.w1(x))
         x = self.w2(x)
         return x
-

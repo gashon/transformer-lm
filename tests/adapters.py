@@ -7,13 +7,6 @@ from typing import IO, BinaryIO, Iterable, Optional, Type
 import numpy.typing as npt
 import torch
 
-from models.tokenizer.bpe_tokenizer import BPETokenizer 
-from models.tokenizer.tokenizer import Tokenizer
-
-from models.transformer.layers import CausalMultiHeadAttention, RMSNorm, TransformerBlock
-from models.transformer.transformer import TransformerLM
-
-from models.transformer.util import gelu, softmax, scaled_dot_product_attention, cross_entropy_loss, AdamW, cosine_learning_rate_schedule, clip_gradients, create_data_batches
 
 def run_positionwise_feedforward(
     d_model: int,
@@ -50,11 +43,11 @@ def run_positionwise_feedforward(
     # You can also manually assign the weights
     # my_ffn.w1.weight.data = weights["w1.weight"]
     # my_ffn.w2.weight.data = weights["w2.weight"]
+    from models.transformer.layers import PositionWiseFeedForward
 
     ffn = PositionWiseFeedForward(d_model, d_ff)
-    ffn.w1.weight.data = weights["w1.weight"]
-    ffn.w2.weight.data = weights["w2.weight"]
-    return ffn.forward(in_features)
+    ffn.load_state_dict(weights)
+    return ffn(in_features)
 
 
 def run_scaled_dot_product_attention(
@@ -96,12 +89,15 @@ def run_scaled_dot_product_attention(
         with the output of running your scaled dot product attention
         implementation with the provided key, query, and value tensors.
     """
-    return scaled_dot_product_attention(Q, K, V, mask, pdrop)
+    from models.transformer.util import scaled_dot_product_attention
+
+    return scaled_dot_product_attention(K, Q, V, mask=mask, pdrop=pdrop)
 
 
 def run_multihead_self_attention(
     d_model: int,
     num_heads: int,
+    attn_pdrop: float,
     weights: dict[str, torch.FloatTensor],
     in_features: torch.FloatTensor,
 ) -> torch.FloatTensor:
@@ -116,6 +112,9 @@ def run_multihead_self_attention(
             Dimensionality of the feedforward input and output.
         num_heads: int
             Number of heads to use in multi-headed attention.
+        attn_pdrop: float
+            Drop-out the attention probabilities (the softmax-normalized
+            attention scores) with this rate.
         weights: dict[str, torch.FloatTensor]
             State dict of our reference implementation.
             The keys of this dictionary are:
@@ -142,16 +141,24 @@ def run_multihead_self_attention(
         torch.FloatTensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    attn = CausalMultiHeadAttention(d_model, num_heads)
+    from models.transformer.layers import CausalMultiHeadAttention
 
-    cat_weights = {}
-    cat_weights["q_proj.weight"] = torch.cat([weights[f"q_heads.{i}.weight"] for i in range((len(weights)-1)//3)], dim=0)
-    cat_weights["k_proj.weight"] = torch.cat([weights[f"k_heads.{i}.weight"] for i in range((len(weights)-1)//3)], dim=0)
-    cat_weights["v_proj.weight"] = torch.cat([weights[f"v_heads.{i}.weight"] for i in range((len(weights)-1)//3)], dim=0)
-    cat_weights["output_proj.weight"] = weights["output_proj.weight"]
-    attn.load_state_dict(cat_weights)
+    mha = CausalMultiHeadAttention(d_model, num_heads, attn_pdrop)
 
-    return attn.forward(in_features)
+    cat_weights = {
+        "q_proj.weight": torch.cat(
+            [weights[f"q_heads.{i}.weight"] for i in range(num_heads)], dim=0
+        ),
+        "k_proj.weight": torch.cat(
+            [weights[f"k_heads.{i}.weight"] for i in range(num_heads)], dim=0
+        ),
+        "v_proj.weight": torch.cat(
+            [weights[f"v_heads.{i}.weight"] for i in range(num_heads)], dim=0
+        ),
+        "output_proj.weight": weights["output_proj.weight"],
+    }
+    mha.load_state_dict(cat_weights)
+    return mha(in_features)
 
 
 def run_transformer_block(
@@ -174,24 +181,30 @@ def run_transformer_block(
             evenly divisible by `num_heads`.
         d_ff: int
             Dimensionality of the feed-forward inner layer (section 3.3).
-        attn_pdrop: Optional[float], default is None.
-            If given, drop-out the attention probabilities (the softmax-normalized
+        attn_pdrop: float
+            Drop-out the attention probabilities (the softmax-normalized
             attention scores) with this rate.
-        residual_pdrop: Optional[float], default is None.
-            If given, apply dropout to the output of each sub-layer, before it
+        residual_pdrop: float
+            Apply dropout to the output of each sub-layer, before it
             is added to the sub-layer input and normalized (section 5.4).
         weights: dict[str, torch.FloatTensor]
             State dict of our reference implementation.
             The keys of this dictionary are:
             - `attn.q_proj.weight`
                 The query projections for all `num_heads` attention heads.
-                Shape is ((d_model / num_heads) * num_heads, d_model).
+                Shape is (num_heads * (d_model / num_heads), d_model).
+                The rows are ordered by matrices of shape (num_heads, d_k),
+                so `attn.q_proj.weight == torch.cat([q_heads.0.weight, ..., q_heads.N.weight], dim=0)`.
             - `attn.k_proj.weight`
                 The key projections for all `num_heads` attention heads.
-                Shape is ((d_model / num_heads) * num_heads, d_model).
+                Shape is (num_heads * (d_model / num_heads), d_model).
+                The rows are ordered by matrices of shape (num_heads, d_k),
+                so `attn.k_proj.weight == torch.cat([k_heads.0.weight, ..., k_heads.N.weight], dim=0)`.
             - `attn.v_proj.weight`
                 The value projections for all `num_heads` attention heads.
-                Shape is ((d_model / num_heads) * num_heads, d_model).
+                Shape is (num_heads * (d_model / num_heads), d_model).
+                The rows are ordered by matrices of shape (num_heads, d_v),
+                so `attn.v_proj.weight == torch.cat([v_heads.0.weight, ..., v_heads.N.weight], dim=0)`.
             - `attn.output_proj.weight`
                 Weight of the multi-head self-attention output projection
                 Shape is ((d_model / num_heads) * num_heads, d_model).
@@ -217,10 +230,11 @@ def run_transformer_block(
         FloatTensor of shape (batch_size, sequence_length, d_model) with the output of
         running the Transformer block on the input features.
     """
-    block = TransformerBlock(d_model, num_heads, d_ff, attn_pdrop, residual_pdrop)
-    block.load_state_dict(weights)
-    output = block.forward(in_features)
-    return output
+    from models.transformer.layers import TransformerBlock
+
+    tb = TransformerBlock(d_model, num_heads, d_ff, attn_pdrop, residual_pdrop)
+    tb.load_state_dict(weights)
+    return tb(in_features)
 
 
 def run_transformer_lm(
@@ -252,11 +266,11 @@ def run_transformer_lm(
             evenly divisible by `num_heads`.
         d_ff: int
             Dimensionality of the feed-forward inner layer (section 3.3).
-        attn_pdrop: Optional[float], default is None.
-            If given, drop-out the attention probabilities (the softmax-normalized
+        attn_pdrop: float
+            Drop-out the attention probabilities (the softmax-normalized
             attention scores) with this rate.
-        residual_pdrop: Optional[float], default is None.
-            If given, apply dropout to the sum of the token and position embeddings
+        residual_pdrop: float
+            Apply dropout to the sum of the token and position embeddings
             as well as the output of each sub-layer, before it is added to the
             sub-layer input and normalized (section 5.4).
         weights: dict[str, torch.FloatTensor]
@@ -269,13 +283,19 @@ def run_transformer_lm(
                 Positional embedding matrix. Shape is (context_length, d_model).
             - `layers.{num_layers}.attn.q_proj.weight`
                 The query projections for all `num_heads` attention heads.
-                Shape is ((d_model / num_heads) * num_heads, d_model).
+                Shape is (num_heads * (d_model / num_heads), d_model).
+                The rows are ordered by matrices of shape (num_heads, d_k),
+                so `attn.q_proj.weight == torch.cat([q_heads.0.weight, ..., q_heads.N.weight], dim=0)`.
             - `layers.{num_layers}.attn.k_proj.weight`
                 The key projections for all `num_heads` attention heads.
-                Shape is ((d_model / num_heads) * num_heads, d_model).
+                Shape is (num_heads * (d_model / num_heads), d_model).
+                The rows are ordered by matrices of shape (num_heads, d_k),
+                so `attn.k_proj.weight == torch.cat([k_heads.0.weight, ..., k_heads.N.weight], dim=0)`.
             - `layers.{num_layers}.attn.v_proj.weight`
                 The value projections for all `num_heads` attention heads.
-                Shape is ((d_model / num_heads) * num_heads, d_model).
+                Shape is (num_heads * (d_model / num_heads), d_model).
+                The rows are ordered by matrices of shape (num_heads, d_v),
+                so `attn.v_proj.weight == torch.cat([v_heads.0.weight, ..., v_heads.N.weight], dim=0)`.
             - `layers.{num_layers}.attn.output_proj.weight`
                 Weight of the multi-head self-attention output projection
                 Shape is ((d_model / num_heads) * num_heads, d_model).
@@ -294,7 +314,7 @@ def run_transformer_lm(
                 applied in the transformer block.
                 Shape is (d_model,).
             - `ln_final.weight`
-                Weights of affine transform for layernorm applied to the output of the final transformer block.
+                Weights of affine transform for RMSNorm applied to the output of the final transformer block.
                 Shape is (d_model, ).
             - `lm_head.weight`
                 Weights of the language model output embedding.
@@ -307,9 +327,20 @@ def run_transformer_lm(
         FloatTensor of shape (batch size, sequence_length, vocab_size) with the predicted unnormalized
         next-word distribution for each token.
     """
-    model = TransformerLM(vocab_size, context_length, d_model, num_heads, d_ff, num_layers, attn_pdrop, residual_pdrop)
-    model.load_weights(weights)
-    return model.forward(in_indices)
+    from models.transformer.transformer import TransformerLM
+
+    tm = TransformerLM(
+        vocab_size,
+        context_length,
+        num_layers,
+        d_model,
+        num_heads,
+        d_ff,
+        attn_pdrop,
+        residual_pdrop,
+    )
+    tm.load_state_dict(weights)
+    return tm(in_indices)
 
 
 def run_rmsnorm(
@@ -323,7 +354,7 @@ def run_rmsnorm(
 
     Args:
         d_model: int
-            The dimensionality of the layernorm input.
+            The dimensionality of the RMSNorm input.
         eps: float, default is 1e-5
             A value added to the denominator for numerical stability.
         weights: dict[str, torch.FloatTensor]
@@ -338,11 +369,13 @@ def run_rmsnorm(
 
     Returns:
         FloatTensor of with the same shape as `in_features` with the output of running
-        layernorm of the `in_features`.
+        RMSNorm of the `in_features`.
     """
-    gain = weights["weight"]
-    rmsnorm = RMSNorm(d_model, eps, gain)
-    return rmsnorm.forward(in_features)
+    from models.transformer.layers import RMSNorm
+
+    n = RMSNorm(d_model, eps, weights["weight"])
+    return n(in_features)
+
 
 def run_gelu(in_features: torch.FloatTensor) -> torch.FloatTensor:
     """Given a tensor of inputs, return the output of applying GELU
@@ -356,6 +389,8 @@ def run_gelu(in_features: torch.FloatTensor) -> torch.FloatTensor:
         FloatTensor of with the same shape as `in_features` with the output of applying
         GELU to each element.
     """
+    from models.transformer.util import gelu
+
     return gelu(in_features)
 
 
@@ -383,7 +418,7 @@ def run_get_batch(
         is the sampled input sequences, and the second tuple item is the corresponding
         language modeling labels.
     """
-    return TransformerLM.load_batch(dataset, batch_size, context_length, device)
+    raise NotImplementedError
 
 
 def run_softmax(in_features: torch.FloatTensor, dim: int) -> torch.FloatTensor:
@@ -400,6 +435,8 @@ def run_softmax(in_features: torch.FloatTensor, dim: int) -> torch.FloatTensor:
         FloatTensor of with the same shape as `in_features` with the output of
         softmax normalizing the specified `dim`.
     """
+    from models.transformer.util import softmax
+
     return softmax(in_features, dim)
 
 
@@ -418,8 +455,9 @@ def run_cross_entropy(inputs: torch.FloatTensor, targets: torch.LongTensor):
     Returns:
         Tensor of shape () with the average cross-entropy loss across examples.
     """
-    return cross_entropy_loss(inputs, targets)
+    from models.transformer.util import cross_entropy_loss
 
+    return cross_entropy_loss(inputs, targets)
 
 
 def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float):
@@ -434,15 +472,18 @@ def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm:
     Returns:
         None
     """
-    clip_gradients(parameters, max_l2_norm)
+    from models.transformer.util import clip_gradients
+
+    return clip_gradients(parameters, max_l2_norm)
 
 
 def get_adamw_cls() -> Type[torch.optim.Optimizer]:
     """
     Returns a torch.optim.Optimizer that implements AdamW.
     """
-    return AdamW
+    from models.transformer.util import AdamW
 
+    return AdamW
 
 
 def run_get_lr_cosine_schedule(
@@ -473,9 +514,13 @@ def run_get_lr_cosine_schedule(
             T_c, the number of cosine annealing iterations.
 
     Returns:
-        Tensor of shape () with the average cross-entropy loss across examples.
+        Learning rate at the given iteration under the specified schedule.
     """
-    return cosine_learning_rate_schedule(it, max_learning_rate, min_learning_rate, warmup_iters, cosine_cycle_iters)
+    from models.transformer.util import cosine_learning_rate_schedule
+
+    return cosine_learning_rate_schedule(
+        it, max_learning_rate, min_learning_rate, warmup_iters, cosine_cycle_iters
+    )
 
 
 def run_save_checkpoint(
@@ -498,7 +543,7 @@ def run_save_checkpoint(
         out: str | os.PathLike | BinaryIO | IO[bytes]
             Path or file-like object to serialize the model, optimizer, and iteration to.
     """
-    return TransformerLM.save_checkpoint(model, optimizer, iteration, out)
+    raise NotImplementedError
 
 
 def run_load_checkpoint(
@@ -522,7 +567,7 @@ def run_load_checkpoint(
     Returns:
         int, the previously-serialized number of iterations.
     """
-    return TransformerLM.load_checkpoint(src, model, optimizer)
+    raise NotImplementedError
 
 
 def get_tokenizer(
@@ -530,7 +575,7 @@ def get_tokenizer(
     merges: list[tuple[bytes, bytes]],
     special_tokens: Optional[list[str]] = None,
 ):
-    """Given the path to a JSON vocab, a file with BPE merges, and a list of special tokens,
+    """Given a vocabulary, a list of merges, and a list of special tokens,
     return a BPE tokenizer that uses the provided vocab, merges, and special tokens.
 
     Args:
@@ -548,6 +593,8 @@ def get_tokenizer(
     Returns:
         A BPE tokenizer that uses the provided vocab, merges, and special tokens.
     """
+    from models.tokenizer.tokenizer import Tokenizer
+
     tokenizer = Tokenizer(vocab, merges, special_tokens)
     return tokenizer
 
@@ -582,8 +629,9 @@ def run_train_bpe(
                 representing that <token1> was merged with <token2>.
                 Merges are ordered by order of creation.
     """
+    from models.tokenizer.bpe_tokenizer import BPETokenizer
+
     tokenizer = BPETokenizer(vocab_size, special_tokens)
     vocab, merges = tokenizer.from_file(input_path)
 
     return vocab, merges
-

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import resource
+import sys
 from typing import Optional
 
 import psutil
@@ -363,8 +364,8 @@ def test_encode_iterable_tinystories_sample_roundtrip():
     )
     all_ids = []
     with open(FIXTURES_PATH / "tinystories_sample.txt") as f:
-        for ids in tokenizer.encode_iterable(f):
-            all_ids.append(ids)
+        for _id in tokenizer.encode_iterable(f):
+            all_ids.append(_id)
     with open(FIXTURES_PATH / "tinystories_sample.txt") as f:
         corpus_contents = f.read()
     assert tokenizer.decode(all_ids) == corpus_contents
@@ -391,6 +392,10 @@ def test_encode_iterable_tinystories_matches_tiktoken():
     assert reference_tokenizer.decode(reference_ids) == corpus_contents
 
 
+@pytest.mark.skipif(
+    not sys.platform.startswith("linux"),
+    reason="rlimit support for non-linux systems is spotty.",
+)
 def test_encode_iterable_memory_usage():
     tokenizer = get_tokenizer_from_vocab_merges_path(
         vocab_path=VOCAB_PATH,
@@ -402,6 +407,10 @@ def test_encode_iterable_memory_usage():
             ids.append(_id)
 
 
+@pytest.mark.skipif(
+    not sys.platform.startswith("linux"),
+    reason="rlimit support for non-linux systems is spotty.",
+)
 @pytest.mark.xfail(
     reason="Tokenizer.encode is expected to take more memory than allotted (1MB)."
 )
