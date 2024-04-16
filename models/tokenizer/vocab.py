@@ -22,6 +22,9 @@ class Vocab:
     def __len__(self) -> int:
         return len(self.idx_to_token)
 
+    def __getitem__(self, idx: int) -> bytes:
+        return self.idx_to_token.get(idx, self.idx_to_token[self.unk_idx])
+
     def add_token(self, token: bytes) -> None:
         if token in self.idx_to_token.values():
             return

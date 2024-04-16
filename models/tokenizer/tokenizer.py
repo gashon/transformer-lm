@@ -1,4 +1,5 @@
-import collections from typing import Iterable, Iterator, List, Tuple, Dict
+import collections
+from typing import Iterable, Iterator, List, Tuple, Dict
 import os
 import pickle
 import regex as re
@@ -10,22 +11,22 @@ from models.tokenizer.vocab import Vocab
 class Tokenizer:
     def __init__(
         self,
-        vocab: Vocab,
+        vocab: dict[int, bytes],
         merges: List[Tuple[bytes, bytes]],
-        special_tokens: List[str] = [],
+        special_tokens: List[str] | None = [],
     ):
         self.vocab = vocab
-        self.vocab_inv = vocab.get_inv()
-        self.special_tokens = special_tokens 
-        self.merges = collections.defaultdict(int) 
-        for i, (a, b) in enumerate(merges):
-            self.merges[(a, b)] = i
+        self.vocab_inv = {v: k for k, v in vocab.items()}
+        self.special_tokens = special_tokens
+
+        self.merges = merges
 
         # gpt-2 pre-tokenizer
         # @see https://github.com/openai/tiktoken/pull/234
         pat = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
         self.PAT = re.compile(pat, re.UNICODE)
 
+        self.special_tokens = list(set(self.special_tokens or []))
         self.special_tokens.sort(key=len, reverse=True)
         special = "|".join(re.escape(token) for token in self.special_tokens)
         self.segment_rgx = f"({special})" if special else None
@@ -33,7 +34,7 @@ class Tokenizer:
         # Add special tokens to vocabulary if not present
         for token in self.special_tokens:
             if token.encode("utf-8") not in self.vocab_inv:
-                self.vocab.add_token(token.encode("utf-8"))
+                self.vocab[token.encode("utf-8")] = len(self.vocab)
                 self.vocab_inv[token.encode("utf-8")] = len(self.vocab) - 1
 
     @classmethod
@@ -111,6 +112,7 @@ class Tokenizer:
         # Pre-tokenize
         segments = self.segment(text)
         pre_token_count = self.pretokenize(segments)
+        inv_merges = {pair: i for i, pair in enumerate(self.merges)}
 
         ids = []
         for token in pre_token_count:
@@ -124,8 +126,8 @@ class Tokenizer:
 
             while len(raw_bytes) > 1:
                 pairs = [pair for pair in zip(raw_bytes, raw_bytes[1:])]
-                pair = min(pairs, key=lambda p: self.merges.get(p, float("inf")))
-                if pair not in self.merges:
+                pair = min(pairs, key=lambda pair: inv_merges.get(pair, float("inf")))
+                if pair not in inv_merges:
                     break
                 raw_bytes = self.merge(raw_bytes, pair, pair[0] + pair[1])
 
