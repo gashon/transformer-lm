@@ -91,7 +91,7 @@ def run_scaled_dot_product_attention(
     """
     from models.transformer.util import scaled_dot_product_attention
 
-    return scaled_dot_product_attention(K, Q, V, mask=mask, pdrop=pdrop)
+    return scaled_dot_product_attention(Q, K, V, mask=mask, pdrop=pdrop)
 
 
 def run_multihead_self_attention(
