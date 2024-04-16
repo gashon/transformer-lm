@@ -135,45 +135,50 @@ def merge_subwords(
 
 
 def train_bpe(input_path: str, vocab_size: int, special_tokens: List[str] = []):
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s (%(levelname)s): %(message)s"
+    )
+    logger = logging.getLogger("tokenizer")
+
     pattern = re.compile(
         r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""",
         re.UNICODE,
     )
 
     start_time = time.time()
-    logging.info("Creating vocab")
+    logger.info("Creating vocab")
     vocab = Vocab(special_tokens=special_tokens)
-    logging.info("Took %s seconds to create vocab", round(time.time() - start_time, 2))
+    logger.info("Took %s seconds to create vocab", round(time.time() - start_time, 2))
 
     start_time = time.time()
-    logging.info("Extracting subword frequencies")
+    logger.info("Extracting subword frequencies")
     subword_frequencies = extract_subword_frequencies(
         input_path, set(special_tokens), pattern
     )
-    logging.info(
+    logger.info(
         "Took %s seconds to extract subword frequencies",
         round(time.time() - start_time, 2),
     )
 
     start_time = time.time()
-    logging.info("Encoding subwords")
+    logger.info("Encoding subwords")
     encoded_subwords = encode_subwords(list(subword_frequencies.keys()))
-    logging.info(
+    logger.info(
         "Took %s seconds to encode subwords", round(time.time() - start_time, 2)
     )
 
     start_time = time.time()
-    logging.info("Calculating byte pair frequencies")
+    logger.info("Calculating byte pair frequencies")
     byte_pair_frequencies, token_indices = calculate_byte_pair_frequencies(
         encoded_subwords, subword_frequencies
     )
-    logging.info(
+    logger.info(
         "Took %s seconds to calculate byte pair frequencies",
         round(time.time() - start_time, 2),
     )
 
     start_time = time.time()
-    logging.info("Merging subwords")
+    logger.info("Merging subwords")
     merges = []
     for _ in tqdm(range(vocab_size - len(vocab))):
         if len(byte_pair_frequencies) == 0:
@@ -221,8 +226,6 @@ def train_bpe(input_path: str, vocab_size: int, special_tokens: List[str] = []):
         byte_pair_frequencies.pop(best_pair)
         token_indices.pop(best_pair)
         merges.append(best_pair)
-    logging.info(
-        "Took %s seconds to merge subwords", round(time.time() - start_time, 2)
-    )
+    logger.info("Took %s seconds to merge subwords", round(time.time() - start_time, 2))
 
     return vocab.get_idx_to_token(), merges

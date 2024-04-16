@@ -23,7 +23,7 @@ def profile_train_bpe(input_path, vocab_size, special_tokens, name):
     s = io.StringIO()
     ps = pstats.Stats(pr, stream=s).sort_stats("time")
     ps.print_stats()
-    print(s.getvalue())
+    # print(s.getvalue())
 
     training_time = end_time - start_time
     print(f"Training time: {training_time:.2f} seconds")
