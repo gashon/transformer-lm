@@ -24,9 +24,14 @@ class BPETokenizer:
 
         # gpt-2 pre-tokenizer
         # @see https://github.com/openai/tiktoken/pull/234
-        self.PAT = re.compile(r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""", re.UNICODE)
+        self.PAT = re.compile(
+            r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""",
+            re.UNICODE,
+        )
 
-    def from_file(self, input_path: str | os.PathLike) -> Tuple[Dict[int, bytes], List[Tuple[bytes, bytes]]]:
+    def from_file(
+        self, input_path: str | os.PathLike
+    ) -> Tuple[Dict[int, bytes], List[Tuple[bytes, bytes]]]:
         """
         Build the vocabulary and merges from an input file.
 
@@ -41,12 +46,16 @@ class BPETokenizer:
         pretoken_counts = self.get_presubwords(input_path)
         unique_pretokens = list(pretoken_counts.keys())
         subwords = self._encode_presubwords(unique_pretokens)
-        byte_pairs, token_indices = self._calculate_byte_pair_stats(subwords, pretoken_counts)
+        byte_pairs, token_indices = self._calculate_byte_pair_stats(
+            subwords, pretoken_counts
+        )
 
         while len(self.vocab) < self.vocab_size and byte_pairs:
             if self._get_max_byte_pair_frequency(byte_pairs) < 2:
                 break
-            self._merge_best_pair(subwords, byte_pairs, token_indices, self.merges, self.vocab)
+            self._merge_best_pair(
+                subwords, byte_pairs, token_indices, self.merges, self.vocab
+            )
 
         return self.vocab.get_idx_to_token(), self.merges
 
@@ -56,19 +65,14 @@ class BPETokenizer:
     def get_presubwords(self, input_path: str | os.PathLike) -> Dict[str, int]:
         match_count: Dict[str, int] = {}
 
-        for match in self.PAT.finditer(open(input_path, 'r', encoding='utf-8').read()):
+        for match in self.PAT.finditer(
+            open(input_path, "r", encoding="utf-8").read(), concurrent=True
+        ):
             match_str = match.group()
             if match_str not in self.special_tokens:
                 match_count[match_str] = match_count.get(match_str, 0) + 1
 
         return match_count
-
-    def _update_match_count(self, chunk: List[str], match_count: Dict[str, int]) -> None:
-        chunk_str = ''.join(chunk)
-        matches = self.PAT.findall(chunk_str)
-        for match in matches:
-            if match not in self.special_tokens:
-                match_count[match] = match_count.get(match, 0) + 1
 
     @staticmethod
     def _encode_presubwords(presubwords: List[str]) -> List[List[bytes]]:
@@ -81,16 +85,15 @@ class BPETokenizer:
         Returns:
             A list of encoded subwords, where each subword is a list of bytes.
         """
-        return [
-            [bytes([b]) for b in token.encode("utf-8")]
-            for token in presubwords
-        ]
+        return [[bytes([b]) for b in token.encode("utf-8")] for token in presubwords]
 
     @staticmethod
     def _calculate_byte_pair_stats(
-        subwords: List[List[bytes]],
-        pretoken_counts: Dict[str, int]
-    ) -> Tuple[Dict[Tuple[bytes, bytes], int], Dict[Tuple[bytes, bytes], Dict[int, Dict[str, List[int]]]]]:
+        subwords: List[List[bytes]], pretoken_counts: Dict[str, int]
+    ) -> Tuple[
+        Dict[Tuple[bytes, bytes], int],
+        Dict[Tuple[bytes, bytes], Dict[int, Dict[str, List[int]]]],
+    ]:
         """
         Calculate the frequency of byte pairs and the token indices.
 
@@ -101,17 +104,17 @@ class BPETokenizer:
         Returns:
             A tuple containing:
                 - byte_pairs: A dictionary mapping byte pairs to their frequency.
-                - token_indices: A dictionary mapping byte pairs to the indices of tokens (key) and number of occurrences (value). 
+                - token_indices: A dictionary mapping byte pairs to the indices of tokens (key) and number of occurrences (value).
         """
 
         byte_pairs: Dict[Tuple[bytes, bytes], int] = collections.defaultdict(int)
         token_indices: Dict[Tuple[bytes, bytes], Dict[int, Dict[str, List[int]]]] = {}
 
         for i, word in enumerate(subwords):
-            count = pretoken_counts[bytes(b''.join(word)).decode('utf-8')]
+            count = pretoken_counts[bytes(b"".join(word)).decode("utf-8")]
 
             for j in range(len(word) - 1):
-                byte_pair = (word[j], word[j+1])
+                byte_pair = (word[j], word[j + 1])
                 byte_pairs[byte_pair] = byte_pairs.get(byte_pair, 0) + count
                 if byte_pair not in token_indices:
                     token_indices[byte_pair] = {}
@@ -141,7 +144,7 @@ class BPETokenizer:
         byte_pairs: Dict[Tuple[bytes, bytes], int],
         token_indices: Dict[Tuple[bytes, bytes], Dict[int, Dict[str, List[int]]]],
         merges: List[Tuple[bytes, bytes]],
-        vocab: Vocab
+        vocab: Vocab,
     ) -> None:
         """
         Merge the best byte pair and update the subwords and vocabulary.
@@ -166,23 +169,32 @@ class BPETokenizer:
             num_merged = 0
             for byte_idx in byte_idxs:
                 byte_idx = byte_idx - num_merged
-                if subwords[tkn_idx][byte_idx] != best_pair[0] or subwords[tkn_idx][byte_idx + 1] != best_pair[1]:
+                if (
+                    subwords[tkn_idx][byte_idx] != best_pair[0]
+                    or subwords[tkn_idx][byte_idx + 1] != best_pair[1]
+                ):
                     continue
 
                 assert subwords[tkn_idx][byte_idx] == best_pair[0]
                 assert subwords[tkn_idx][byte_idx + 1] == best_pair[1]
 
                 count = token_indices[best_pair][tkn_idx]["count"]
-                BPETokenizer._update_byte_pair_stats(subwords, tkn_idx, byte_idx, new_token, byte_pairs, count)
+                BPETokenizer._update_byte_pair_stats(
+                    subwords, tkn_idx, byte_idx, new_token, byte_pairs, count
+                )
 
                 # update token indicies (decrement left and right frequencies) + remove the indicies at this token
-                BPETokenizer._update_token_indices_after_merge(subwords, tkn_idx, byte_idx, token_indices)
+                BPETokenizer._update_token_indices_after_merge(
+                    subwords, tkn_idx, byte_idx, token_indices
+                )
 
                 # merge the pair
                 BPETokenizer._merge_subwords(subwords, tkn_idx, byte_idx, new_token)
                 num_merged += 1
                 # update token indicies (create new token indicies for the merged pair)
-                BPETokenizer._create_new_token_indices(subwords, tkn_idx, byte_idx, token_indices, best_pair)
+                BPETokenizer._create_new_token_indices(
+                    subwords, tkn_idx, byte_idx, token_indices, best_pair
+                )
                 BPETokenizer._reset_token_indices(subwords, tkn_idx, token_indices)
 
         byte_pairs.pop(best_pair)
@@ -209,16 +221,16 @@ class BPETokenizer:
             if merged_idx - 1 in token_indices[pair][tkn_idx]["byte_idx"]:
                 token_indices[pair][tkn_idx]["byte_idx"].remove(merged_idx - 1)
         if merged_idx < len(subwords[tkn_idx]) - 2:
-            pair = (subwords[tkn_idx][merged_idx+1], subwords[tkn_idx][merged_idx + 2])
+            pair = (
+                subwords[tkn_idx][merged_idx + 1],
+                subwords[tkn_idx][merged_idx + 2],
+            )
             if merged_idx + 1 in token_indices[pair][tkn_idx]["byte_idx"]:
                 token_indices[pair][tkn_idx]["byte_idx"].remove(merged_idx + 1)
 
     @staticmethod
     def _merge_subwords(
-        subwords: List[List[bytes]],
-        tkn_idx: int,
-        byte_idx: int,
-        new_token: bytes
+        subwords: List[List[bytes]], tkn_idx: int, byte_idx: int, new_token: bytes
     ) -> None:
         """
         Merge subwords at the given byte indices.
@@ -238,7 +250,7 @@ class BPETokenizer:
         tkn_idx: int,
         merged_idx: int,
         token_indices: Dict[Tuple[bytes, bytes], Dict[int, Dict[str, List[int]]]],
-        best_pair: Tuple[bytes, bytes]
+        best_pair: Tuple[bytes, bytes],
     ) -> None:
         """
         Create new token indices for merged pairs.
@@ -252,24 +264,28 @@ class BPETokenizer:
         """
         count = token_indices[best_pair][tkn_idx]["count"]
         if merged_idx > 0:
-            left_pair = (subwords[tkn_idx][merged_idx - 1], subwords[tkn_idx][merged_idx])
+            left_pair = (
+                subwords[tkn_idx][merged_idx - 1],
+                subwords[tkn_idx][merged_idx],
+            )
             if left_pair not in token_indices:
                 token_indices[left_pair] = {}
             token_indices[left_pair][tkn_idx] = {"count": count, "byte_idx": []}
-            token_indices[left_pair][tkn_idx]["byte_idx"].append(merged_idx - 1)
 
         if merged_idx < len(subwords[tkn_idx]) - 1:
-            right_pair = (subwords[tkn_idx][merged_idx], subwords[tkn_idx][merged_idx + 1])
+            right_pair = (
+                subwords[tkn_idx][merged_idx],
+                subwords[tkn_idx][merged_idx + 1],
+            )
             if right_pair not in token_indices:
                 token_indices[right_pair] = {}
             token_indices[right_pair][tkn_idx] = {"count": count, "byte_idx": []}
-            token_indices[right_pair][tkn_idx]["byte_idx"].append(merged_idx)
 
     @staticmethod
     def _reset_token_indices(
         subwords: List[List[bytes]],
         tkn_idx: int,
-        token_indices: Dict[Tuple[bytes, bytes], Dict[int, Dict[str, List[int]]]]
+        token_indices: Dict[Tuple[bytes, bytes], Dict[int, Dict[str, List[int]]]],
     ) -> None:
         """
         Reset token indices after merging pairs.
@@ -294,7 +310,7 @@ class BPETokenizer:
         j: int,
         new_token: bytes,
         byte_pairs: Dict[Tuple[bytes, bytes], int],
-        freq: int
+        freq: int,
     ) -> None:
         """
         Update the byte pair statistics after merging a pair.
@@ -309,14 +325,14 @@ class BPETokenizer:
             freq: The frequency of the merged pair.
         """
         if j > 0:
-            left_pair = (subwords[i][j-1], subwords[i][j])
+            left_pair = (subwords[i][j - 1], subwords[i][j])
             byte_pairs[left_pair] -= freq
-            byte_pairs[(subwords[i][j-1], new_token)] += freq
+            byte_pairs[(subwords[i][j - 1], new_token)] += freq
 
         if j < len(subwords[i]) - 2:
-            right_pair = (subwords[i][j+1], subwords[i][j+2])
+            right_pair = (subwords[i][j + 1], subwords[i][j + 2])
             byte_pairs[right_pair] -= freq
-            byte_pairs[(new_token, subwords[i][j+2])] += freq
+            byte_pairs[(new_token, subwords[i][j + 2])] += freq
 
     def save_to_file(self, vocab_file: str, merges_file: str) -> None:
         """
@@ -336,15 +352,15 @@ class BPETokenizer:
         Args:
             vocab_file: The path to the file where the vocabulary will be saved.
         """
-        with open(vocab_file, 'w', encoding='utf-8') as f:
+        with open(vocab_file, "w", encoding="utf-8") as f:
             vocab_data = {
-                'vocab_size': self.vocab_size,
-                'special_tokens': list(self.special_tokens),
-                'vocab': {}
+                "vocab_size": self.vocab_size,
+                "special_tokens": list(self.special_tokens),
+                "vocab": {},
             }
             for idx, token in self.vocab.get_idx_to_token().items():
                 decoded_token = self._decode_token(token)
-                vocab_data['vocab'][idx] = decoded_token
+                vocab_data["vocab"][idx] = decoded_token
             json.dump(vocab_data, f, ensure_ascii=False, indent=2)
 
     def _save_merges(self, merges_file: str) -> None:
@@ -354,7 +370,7 @@ class BPETokenizer:
         Args:
             merges_file: The path to the file where the merges will be saved.
         """
-        with open(merges_file, 'w', encoding='utf-8') as f:
+        with open(merges_file, "w", encoding="utf-8") as f:
             merges_data = []
             for merge in self.merges:
                 decoded_merge = self._decode_merge(merge)
@@ -373,9 +389,9 @@ class BPETokenizer:
             The decoded token as a string.
         """
         try:
-            decoded_token = token.decode('utf-8')
+            decoded_token = token.decode("utf-8")
         except UnicodeDecodeError:
-            decoded_token = f'<byte_{token.hex()}>'
+            decoded_token = f"<byte_{token.hex()}>"
         return decoded_token
 
     @staticmethod
@@ -390,7 +406,7 @@ class BPETokenizer:
             The decoded merge as a tuple of strings.
         """
         try:
-            decoded_merge = (merge[0].decode('utf-8'), merge[1].decode('utf-8'))
+            decoded_merge = (merge[0].decode("utf-8"), merge[1].decode("utf-8"))
         except UnicodeDecodeError:
-            decoded_merge = (f'<byte_{merge[0].hex()}>', f'<byte_{merge[1].hex()}>')
+            decoded_merge = (f"<byte_{merge[0].hex()}>", f"<byte_{merge[1].hex()}>")
         return decoded_merge
