@@ -6,6 +6,7 @@
 #SBATCH --time=1:30:00
 #SBATCH --output=train_owt_%j.out
 #SBATCH --error=train_owt_%j.err
+#SBATCH --gpus=1
 
 source $(conda info --base)/etc/profile.d/conda.sh
 conda activate transformer_lm

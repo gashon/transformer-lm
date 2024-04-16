@@ -33,8 +33,6 @@ def train(
     dataset,
     resume,
 ):
-    train_gen = torch.Generator().manual_seed(42)
-    valid_gen = torch.Generator().manual_seed(42)
     best_val_loss = float("inf")
 
     if resume:
@@ -49,7 +47,7 @@ def train(
         with torch.no_grad():
             for _ in tqdm(range(num_val_batches), desc="Validation"):
                 inputs, targets = load_batch(
-                    valid_dataloader, val_batch_size, context_length, device, valid_gen
+                    valid_dataloader, val_batch_size, context_length, device
                 )
                 inputs, targets = inputs.to(device), targets.to(device)
                 logits = model(inputs)
@@ -67,7 +65,7 @@ def train(
     total_train_loss = 0
     for current_step in tqdm(range(num_steps), desc=f"Training Step {num_steps+1}"):
         inputs, targets = load_batch(
-            train_dataloader, train_batch_size, context_length, device, train_gen
+            train_dataloader, train_batch_size, context_length, device
         )
         inputs, targets = inputs.to(device), targets.to(device)
         optimizer.zero_grad()
@@ -82,15 +80,19 @@ def train(
 
         total_train_loss += loss.item()
 
-        average_train_loss = total_train_loss / (current_step + 1)
-        wandb.log({"average_train_loss": average_train_loss})
+        if current_step % 100 == 0:
+            average_train_loss = total_train_loss / (current_step + 1)
+            wandb.log({"average_train_loss": average_train_loss})
 
-        val_loss, val_perpl = validate()
-        print(f"Validation Loss: {val_loss:.4f}, Perplexity: {val_perpl:.4f}")
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
-            latest_checkpoint_path = os.path.join(checkpoint_dir, f"{dataset}_best.pth")
-            save_checkpoint(model, optimizer, num_steps, latest_checkpoint_path)
+        if current_step % 400 == 0:
+            val_loss, val_perpl = validate()
+            print(f"Validation Loss: {val_loss:.4f}, Perplexity: {val_perpl:.4f}")
+            if val_loss < best_val_loss:
+                best_val_loss = val_loss
+                latest_checkpoint_path = os.path.join(
+                    checkpoint_dir, f"{dataset}_best.pth"
+                )
+                save_checkpoint(model, optimizer, num_steps, latest_checkpoint_path)
 
     average_train_loss = total_train_loss / num_steps
     print(f"Training Loss: {average_train_loss:.4f}")

@@ -6,6 +6,7 @@
 #SBATCH --time=5:05:00
 #SBATCH --output=train_tiny_%j.out
 #SBATCH --error=train_tiny_%j.err
+#SBATCH --gpus=1
 
 source $(conda info --base)/etc/profile.d/conda.sh
 conda activate transformer_lm
@@ -27,5 +28,5 @@ python3 train.py \
   --train_batch_size 256 \
   --val_batch_size 256 \
   --num_steps 5000 \
-  --num_val_batches 10
+  --num_val_batches 1
 
