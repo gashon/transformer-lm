@@ -53,20 +53,28 @@ def decode(model, tokenizer, prompt, max_length, temperature=1.0, top_p=0.9):
     return generated_text
 
 
-def load_model(dataset: str):
-    # python3 train.py --dataset "corpus" --vocab_size 500 --ctx_len 128 --d_model 128 --num_layers 2 --num_heads 4 --d_ff 512 --attn_pdrop 0.05 --residual_pdrop 0.05 --lr_max 0.007 --lr_min 0.0001 --t_warmup 10 --t_cos 200 --epochs 50 --train_batch_size 20 --val_batch_size 16 --num_train_batches 20 --num_val_batches 5
+def load_model(
+    dataset: str,
+    vocab_size: int,
+    ctx_len: int,
+    d_model: int,
+    num_layers: int,
+    num_heads: int,
+    d_ff: int,
+    attn_pdrop: float,
+    residual_pdrop: float,
+):
 
     lm = TransformerLM(
-        vocab_size=500,
-        context_length=128,
-        num_layers=2,
-        d_model=128,
-        num_heads=4,
-        d_ff=512,
-        attn_pdrop=0.05,
-        residual_pdrop=0.05,
+        vocab_size=vocab_size,
+        context_length=ctx_len,
+        num_layers=num_layers,
+        d_model=d_model,
+        num_heads=num_heads,
+        d_ff=d_ff,
+        attn_pdrop=attn_pdrop,
+        residual_pdrop=residual_pdrop,
     )
-
     load_checkpoint(f"checkpoints/{dataset}_best.pth", lm, None)
 
     return lm
@@ -86,6 +94,55 @@ def main():
     parser = argparse.ArgumentParser(
         description="Decode text from a Transformer model."
     )
+    parser.add_argument(
+        "--vocab_size",
+        type=int,
+        required=True,
+        help="Vocabulary size of the model.",
+    )
+    parser.add_argument(
+        "--ctx_len",
+        type=int,
+        required=True,
+        help="Context length of the model.",
+    )
+    parser.add_argument(
+        "--d_model",
+        type=int,
+        required=True,
+        help="Dimension of the model.",
+    )
+    parser.add_argument(
+        "--num_layers",
+        type=int,
+        required=True,
+        help="Number of layers in the model.",
+    )
+    parser.add_argument(
+        "--num_heads",
+        type=int,
+        required=True,
+        help="Number of heads in the model.",
+    )
+    parser.add_argument(
+        "--d_ff",
+        type=int,
+        required=True,
+        help="Dimension of the feedforward network.",
+    )
+    parser.add_argument(
+        "--attn_pdrop",
+        type=float,
+        required=True,
+        help="Dropout probability for attention layers.",
+    )
+    parser.add_argument(
+        "--residual_pdrop",
+        type=float,
+        required=True,
+        help="Dropout probability for residual connections.",
+    )
+
     parser.add_argument(
         "--prompt",
         type=str,
@@ -125,7 +182,17 @@ def main():
 
     args = parser.parse_args()
 
-    model = load_model(args.model_dataset)
+    model = load_model(
+        dataset=args.model_dataset,
+        vocab_size=args.vocab_size,
+        ctx_len=args.ctx_len,
+        d_model=args.d_model,
+        num_layers=args.num_layers,
+        num_heads=args.num_heads,
+        d_ff=args.d_ff,
+        attn_pdrop=args.attn_pdrop,
+        residual_pdrop=args.residual_pdrop,
+    )
     tokenizer = load_tokenizer(args.tokenizer_dataset)
 
     # Generate text
@@ -140,4 +207,4 @@ if __name__ == "__main__":
     main()
 
 # sample usage:
-# python3 -m models.transformer.decode --prompt "Once upon a time," --max_length 100 --temperature 0.8 --top_p 0.85 --model_dataset "corpus" --tokenizer_dataset "corpus"
+# python3 -m models.transformer.decode --prompt "Once upon a time," --max_length 100 --temperature 0.8 --top_p 0.85 --model_dataset "corpus" --tokenizer_dataset "corpus" --vocab_size 500 --ctx_len 128 --d_model 128 --num_layers 2 --num_heads 4 --d_ff 512 --attn_pdrop 0.05 --residual_pdrop 0.05 --lr_max 0.007 --lr_min 0.0001 --t_warmup 10 --t_cos 200 --epochs 50 --train_batch_size 20 --val_batch_size 16 --num_train_batches 20 --num_val_batches 5
