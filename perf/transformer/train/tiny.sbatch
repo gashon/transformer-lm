@@ -14,10 +14,10 @@ python3 train.py \
   --dataset "tiny" \
   --vocab_size 10000 \
   --ctx_len 256 \
-  --d_model 256 \
+  --d_model 512 \
   --num_layers 4 \
-  --num_heads 8 \
-  --d_ff 1024 \
+  --num_heads 16 \
+  --d_ff 2048 \
   --attn_pdrop 0.1 \
   --residual_pdrop 0.1 \
   --lr_max 0.001 \

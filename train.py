@@ -90,7 +90,7 @@ def train(
             )
             latest_checkpoint_path = os.path.join(checkpoint_dir, f"{dataset}_best.pth")
             print(f"Saving best model to {checkpoint_path} (epoch {epoch + 1})")
-            save_checkpoint(model, optimizer, epoch, checkpoint_path)
+            # save_checkpoint(model, optimizer, epoch, checkpoint_path)
             save_checkpoint(model, optimizer, epoch, latest_checkpoint_path)
 
 
