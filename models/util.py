@@ -38,16 +38,10 @@ def load_batch(
     dataset: npt.NDArray,
     batch_size: int,
     context_length: int,
-    device: str,
+    device: str = "cpu",
     generator: Optional[torch.Generator] = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Load a batch of data from the dataset."""
-
-    if torch.cuda.is_available() and "cuda" in device:
-        device = device
-    else:
-        device = "cpu"
-
     inputs = np.zeros((batch_size, context_length))
     target_labels = np.zeros((batch_size, context_length))
 
