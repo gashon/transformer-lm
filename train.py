@@ -82,19 +82,15 @@ def train(
 
         total_train_loss += loss.item()
 
-        if current_step % 100 == 0:
-            average_train_loss = total_train_loss / (current_step + 1)
-            wandb.log({"average_train_loss": average_train_loss})
+        average_train_loss = total_train_loss / (current_step + 1)
+        wandb.log({"average_train_loss": average_train_loss})
 
-        if current_step % 500 == 0:
-            val_loss, val_perpl = validate()
-            print(f"Validation Loss: {val_loss:.4f}, Perplexity: {val_perpl:.4f}")
-            if val_loss < best_val_loss:
-                best_val_loss = val_loss
-                latest_checkpoint_path = os.path.join(
-                    checkpoint_dir, f"{dataset}_best.pth"
-                )
-                save_checkpoint(model, optimizer, num_steps, latest_checkpoint_path)
+        val_loss, val_perpl = validate()
+        print(f"Validation Loss: {val_loss:.4f}, Perplexity: {val_perpl:.4f}")
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            latest_checkpoint_path = os.path.join(checkpoint_dir, f"{dataset}_best.pth")
+            save_checkpoint(model, optimizer, num_steps, latest_checkpoint_path)
 
     average_train_loss = total_train_loss / num_steps
     print(f"Training Loss: {average_train_loss:.4f}")
