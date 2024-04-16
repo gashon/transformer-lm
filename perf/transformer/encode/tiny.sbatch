@@ -2,7 +2,7 @@
 #SBATCH --job-name=encode_tiny
 #SBATCH --partition=batch
 #SBATCH --ntasks=1
-#SBATCH --mem-per-cpu=80G
+#SBATCH --mem-per-cpu=90G
 #SBATCH --time=1:05:00
 #SBATCH --output=encode_tiny_%j.out
 #SBATCH --error=encode_tiny_%j.err
