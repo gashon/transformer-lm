@@ -96,6 +96,7 @@ def train(
 
 def main():
     wandb.init(project="transformer from scratch", entity="gashon")
+    torch.manual_seed(42)
 
     parser = argparse.ArgumentParser(
         description="Train a Transformer model with custom hyperparameters and utilities."
