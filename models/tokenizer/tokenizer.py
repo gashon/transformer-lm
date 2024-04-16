@@ -1,8 +1,10 @@
 import collections
 from typing import Iterable, Iterator, List, Tuple, Dict
 import os
-import json
+import pickle
 import regex as re
+
+from models.tokenizer.train import train_bpe
 
 
 class Tokenizer:
@@ -35,16 +37,27 @@ class Tokenizer:
                 self.vocab_inv[token.encode("utf-8")] = len(self.vocab) - 1
 
     @classmethod
-    def from_files(
-        cls, vocab_filepath: str, merges_filepath: str, special_tokens: List[str] = []
-    ):
-        with open(vocab_filepath, "r", encoding="utf-8") as f:
-            vocab = json.load(f)
-        with open(merges_filepath, "r", encoding="utf-8") as f:
-            merges = json.load(f)
-        vocab = {int(k): bytes(v, "utf-8") for k, v in vocab.items()}
-        merges = [(bytes(a, "utf-8"), bytes(b, "utf-8")) for a, b in merges]
+    def train_from_file(cls, filepath: str, vocab_size: int, special_tokens: List[str]):
+        vocab, merges = train_bpe(filepath, vocab_size, special_tokens)
         return cls(vocab, merges, special_tokens)
+
+    @classmethod
+    def fit(cls, input_path: str, vocab_size: int, special_tokens: List[str]):
+        vocab, merges = train_bpe(input_path, vocab_size, special_tokens)
+        return cls(vocab, merges, special_tokens)
+
+    @classmethod
+    def from_files(
+        cls,
+        vocab_filepath: str,
+        merges_filepath: str,
+        special_tokens: List[str] | None = None,
+    ) -> "Tokenizer":
+        return cls(
+            pickle.load(open(vocab_filepath, "rb")),
+            pickle.load(open(merges_filepath, "rb")),
+            special_tokens=special_tokens,
+        )
 
     def segment(self, text: str) -> List[str]:
         if self.segment_rgx is None:
@@ -130,3 +143,13 @@ class Tokenizer:
     def decode(self, ids: List[int]) -> str:
         raw_bytes = b"".join([self.vocab[i] for i in ids])
         return raw_bytes.decode("utf-8", errors="replace")
+
+    def save(self, path: str, prefix: str = ""):
+        os.makedirs(path, exist_ok=True)
+        vocab_path = os.path.join(path, prefix + "vocab.pkl")
+        merges_path = os.path.join(path, prefix + "merges.pkl")
+
+        with open(vocab_path, "wb+") as f:
+            pickle.dump(self._vocab, f)
+        with open(merges_path, "wb+") as f:
+            pickle.dump(self._merges, f)

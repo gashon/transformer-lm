@@ -12,12 +12,14 @@ def extract_subword_frequencies(
     input_path: str, special_tokens: Set[str], pattern: re.Pattern
 ) -> Dict[str, int]:
     frequencies = {}
-    with open(input_path, "r", encoding="utf-8") as file:
-        content = file.read()
-    for match in pattern.finditer(content):
-        matched_subword = match.group()
-        if matched_subword not in special_tokens:
-            frequencies[matched_subword] = frequencies.get(matched_subword, 0) + 1
+
+    for match in pattern.finditer(
+        open(input_path, "r", encoding="utf-8").read(), concurrent=True
+    ):
+        match_str = match.group()
+        if match_str not in special_tokens:
+            frequencies[match_str] = frequencies.get(match_str, 0) + 1
+
     return frequencies
 
 
