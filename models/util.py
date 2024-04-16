@@ -26,7 +26,7 @@ def load_checkpoint(
     model: torch.nn.Module,
     optimizer: torch.optim.Optimizer | None,
 ):
-    loaded_checkpoint = torch.load(src)
+    loaded_checkpoint = torch.load(src, map_location=torch.device("cpu"))
     if optimizer is not None:
         optimizer.load_state_dict(loaded_checkpoint["optimizer_state_dict"])
     model.load_state_dict(loaded_checkpoint["model_state_dict"])

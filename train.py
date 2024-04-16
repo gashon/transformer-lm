@@ -134,7 +134,10 @@ def main():
     parser.add_argument("--num_val_batches", type=int, default=2)
     args = parser.parse_args()
 
-    wandb.init(project="transformer from scratch", entity="gashon", config=args)
+    run_name = f"lr{args.lr_max}-bs{args.train_batch_size}"
+    wandb.init(
+        project="transformer from scratch", entity="gashon", config=args, name=run_name
+    )
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -166,16 +169,16 @@ def main():
         betas=(args.beta1, args.beta2),
         weight_decay=args.weight_decay,
     )
-    scheduler = torch.optim.lr_scheduler.LambdaLR(
-        optimizer,
-        lr_lambda=lambda step: cosine_learning_rate_schedule(
-            step,
-            args.lr_max,
-            args.lr_min,
-            args.t_warmup,
-            args.num_steps,
-        ),
-    )
+    # scheduler = torch.optim.lr_scheduler.LambdaLR(
+    #     optimizer,
+    #     lr_lambda=lambda step: cosine_learning_rate_schedule(
+    #         step,
+    #         args.lr_max,
+    #         args.lr_min,
+    #         args.t_warmup,
+    #         args.num_steps,
+    #     ),
+    # )
 
     checkpoint_dir = "./checkpoints"
     os.makedirs(f"{checkpoint_dir}/dataset", exist_ok=True)

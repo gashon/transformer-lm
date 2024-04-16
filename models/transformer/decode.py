@@ -181,6 +181,7 @@ def main():
     )
 
     args = parser.parse_args()
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model = load_model(
         dataset=args.model_dataset,
@@ -192,7 +193,7 @@ def main():
         d_ff=args.d_ff,
         attn_pdrop=args.attn_pdrop,
         residual_pdrop=args.residual_pdrop,
-    )
+    ).to(device)
     tokenizer = load_tokenizer(args.tokenizer_dataset)
 
     # Generate text
