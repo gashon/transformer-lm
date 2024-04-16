@@ -254,41 +254,6 @@ def clip_gradients(parameters, max_norm):
                 p.grad.data.mul_(scale)
 
 
-def create_data_batches_with_mmap(
-    file_path, dtype, batch_size, context_length, device="cpu"
-):
-    """
-    Creates batches of token sequences and their corresponding next-token targets using memory-mapped file.
-
-    Args:
-        file_path (str): Path to the binary file containing token IDs.
-        dtype (data-type): The type of the data stored in the file, e.g., np.int32.
-        batch_size (int): Number of sequences per batch.
-        context_length (int): The length of each sequence.
-        device (str): The PyTorch device identifier.
-
-    Returns:
-        tuple: Two PyTorch tensors (inputs, targets) both of shape (batch_size, context_length)
-              where 'inputs' are the input sequences and 'targets' are the next-token sequences.
-    """
-    # Open the dataset file as a memory-mapped array
-    x = np.memmap(file_path, dtype=dtype, mode="r")
-    max_start_index = len(x) - context_length - 1
-
-    # Randomly sample start indices for the sequences
-    start_indices = np.random.randint(0, max_start_index, size=batch_size)
-
-    # Create input and target sequences
-    inputs = np.array([x[idx : idx + context_length] for idx in start_indices])
-    targets = np.array([x[idx + 1 : idx + 1 + context_length] for idx in start_indices])
-
-    # Convert numpy arrays to PyTorch tensors and move them to the specified device
-    inputs_tensor = torch.tensor(inputs, dtype=torch.long).to(device)
-    targets_tensor = torch.tensor(targets, dtype=torch.long).to(device)
-
-    return inputs_tensor, targets_tensor
-
-
 def create_data_batches(dataset, batch_size, context_length, device="cpu"):
     """
     Generates batches of data from the dataset for training.

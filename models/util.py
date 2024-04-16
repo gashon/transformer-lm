@@ -38,7 +38,7 @@ def load_batch(
     dataset: npt.NDArray,
     batch_size: int,
     context_length: int,
-    device: str = "cpu",
+    device: str,
     generator: Optional[torch.Generator] = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Load a batch of data from the dataset."""
