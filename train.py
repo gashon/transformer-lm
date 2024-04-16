@@ -141,12 +141,10 @@ def main():
     train_data = torch.load(
         f"data/tokenizer/{args.dataset}-tokens-train.pt",
         mmap=True,
-        map_location="cpu",
     )
     valid_data = torch.load(
         f"data/tokenizer/{args.dataset}-tokens-valid.pt",
         mmap=True,
-        map_location="cpu",
     )
 
     model = TransformerLM(
