@@ -34,7 +34,11 @@ def load_checkpoint(
 
 
 def load_batch(
-    dataset: npt.NDArray, batch_size: int, context_length: int, device: str
+    dataset: npt.NDArray,
+    batch_size: int,
+    context_length: int,
+    device: str,
+    generator: Optional[torch.Generator] = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Load a batch of data from the dataset."""
 
@@ -47,7 +51,7 @@ def load_batch(
     target_labels = np.zeros((batch_size, context_length))
 
     l = len(dataset) - context_length
-    start_idx = np.random.randint(0, l, batch_size)
+    start_idx = torch.randint(l, (batch_size,), generator=generator)
     for row, idx in enumerate(start_idx):
 
         inputs[row] = dataset[idx : idx + context_length]

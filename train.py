@@ -26,46 +26,52 @@ def train(
     clip_norm,
     device,
     checkpoint_dir,
+    train_batch_size,
+    val_batch_size,
+    context_length,
+    num_train_batches,
     num_val_batches,
 ):
+    train_gen = torch.Generator().manual_seed(42)
+    valid_gen = torch.Generator().manual_seed(42)
     best_val_loss = float("inf")
     for epoch in range(epochs):
         model.train()
         total_train_loss = 0
-        num_batches = 0
 
-        with tqdm(train_dataloader, unit="batch") as tepoch:
-            for inputs, targets in tepoch:
-                tepoch.set_description(f"Epoch {epoch + 1}")
+        for _ in tqdm(range(num_train_batches), desc=f"Training Epoch {epoch+1}"):
+            inputs, targets = load_batch(
+                train_dataloader, train_batch_size, context_length, device, train_gen
+            )
+            inputs, targets = inputs.to(device), targets.to(device)
+            optimizer.zero_grad()
 
-                inputs, targets = inputs.to(device), targets.to(device)
-                optimizer.zero_grad()
+            logits = model(inputs)
+            loss = cross_entropy_loss(logits, targets)
+            loss.backward()
 
-                logits = model(inputs)
-                loss = cross_entropy_loss(logits, targets)
-                loss.backward()
+            clip_gradients(model.parameters(), clip_norm)
+            optimizer.step()
+            scheduler.step()
 
-                clip_gradients(model.parameters(), clip_norm)
-                optimizer.step()
-                scheduler.step()
+            total_train_loss += loss.item()
 
-                total_train_loss += loss.item()
-                num_batches += 1
-                tepoch.set_postfix(loss=loss.item())
-
-        average_train_loss = total_train_loss / num_batches
+        average_train_loss = total_train_loss / num_train_batches
         print(f"Training Loss: {average_train_loss:.4f}")
 
         model.eval()
         total_valid_loss = 0
         with torch.no_grad():
-            for inputs, targets in valid_dataloader:
+            for _ in tqdm(range(num_val_batches), desc=f"Validation Epoch {epoch+1}"):
+                inputs, targets = load_batch(
+                    valid_dataloader, val_batch_size, context_length, device, valid_gen
+                )
                 inputs, targets = inputs.to(device), targets.to(device)
                 logits = model(inputs)
                 valid_loss = cross_entropy_loss(logits, targets)
                 total_valid_loss += valid_loss.item()
 
-        average_valid_loss = total_valid_loss / len(valid_dataloader)
+        average_valid_loss = total_valid_loss / num_val_batches
         print(f"Validation Loss: {average_valid_loss:.4f}")
 
         if average_valid_loss < best_val_loss:
@@ -98,8 +104,9 @@ def main():
     parser.add_argument("--beta1", type=float, default=0.9)
     parser.add_argument("--beta2", type=float, default=0.999)
     parser.add_argument("--weight_decay", type=float, default=0.01)
-    parser.add_argument("--num_steps", type=int, default=1280000 // 256)
+    parser.add_argument("--epochs", type=int, default=2)
     parser.add_argument("--train_batch_size", type=int, default=256)
+    parser.add_argument("--num_train_batches", type=int, default=1280000 // 256)
     parser.add_argument("--val_batch_size", type=int, default=512)
     parser.add_argument("--num_val_batches", type=int, default=2)
     args = parser.parse_args()
@@ -107,16 +114,15 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    tokenizer = Tokenizer(vocab_size=args.vocab_size)
-    train_dataloader = create_dataloader(
-        "path/to/train_dataset.txt", tokenizer, args.train_batch_size, args.ctx_len
+    train_data = torch.load(
+        f"data/tokenizer/{args.dataset}-tokens-train.pt",
+        mmap=True,
+        map_location="cpu",
     )
-    valid_dataloader = create_dataloader(
-        "path/to/valid_dataset.txt",
-        tokenizer,
-        args.val_batch_size,
-        args.ctx_len,
-        shuffle=False,
+    valid_data = torch.load(
+        f"data/tokenizer/{args.dataset}-tokens-valid.pt",
+        mmap=True,
+        map_location="cpu",
     )
 
     model = TransformerLM(
@@ -147,16 +153,20 @@ def main():
     os.makedirs(checkpoint_dir, exist_ok=True)
 
     train(
-        model,
-        train_dataloader,
-        valid_dataloader,
-        optimizer,
-        scheduler,
-        args.num_steps,
-        1.0,
-        device,
-        checkpoint_dir,
-        args.num_val_batches,
+        model=model,
+        train_dataloader=train_data,
+        valid_dataloader=valid_data,
+        optimizer=optimizer,
+        scheduler=scheduler,
+        epochs=args.epochs,
+        clip_norm=1.0,
+        device=device,
+        checkpoint_dir=checkpoint_dir,
+        train_batch_size=args.train_batch_size,
+        val_batch_size=args.val_batch_size,
+        context_length=args.ctx_len,
+        num_train_batches=args.num_train_batches,
+        num_val_batches=args.num_val_batches,
     )
 
 
