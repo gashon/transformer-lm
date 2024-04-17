@@ -48,7 +48,6 @@ def load_batch(
     l = len(dataset) - context_length
     start_idx = torch.randint(l, (batch_size,), generator=generator)
     for row, idx in enumerate(start_idx):
-
         inputs[row] = dataset[idx : idx + context_length]
         target_labels[row] = dataset[idx + 1 : idx + context_length + 1]
 

@@ -28,4 +28,6 @@ python3 train.py \
 	--train_batch_size 32 \
 	--val_batch_size 16 \
 	--num_steps 6000 \
-	--num_val_batches 10
+	--num_val_batches 10 \
+	--train_dataset "/data/owt-train.bin" \
+	--val_dataset "/data/owt-valid.bin"

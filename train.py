@@ -30,7 +30,7 @@ def train(
     context_length,
     num_steps,
     num_val_batches,
-    dataset,
+    name,
     resume,
     lr,
     val_every,
@@ -39,7 +39,7 @@ def train(
 
     if resume:
         current_step = load_checkpoint(
-            f"{checkpoint_dir}/{dataset}_best_{lr}_{train_batch_size}.pth",
+            f"{checkpoint_dir}/{name}_best_{lr}_{train_batch_size}.pth",
             model,
             optimizer,
         )
@@ -93,7 +93,7 @@ def train(
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 latest_checkpoint_path = os.path.join(
-                    checkpoint_dir, f"{dataset}_best_{lr}_{train_batch_size}.pth"
+                    checkpoint_dir, f"{}_best_{lr}_{train_batch_size}.pth"
                 )
                 save_checkpoint(model, optimizer, num_steps, latest_checkpoint_path)
 
@@ -108,7 +108,9 @@ def main():
     parser = argparse.ArgumentParser(
         description="Train a Transformer model with custom hyperparameters and utilities."
     )
-    parser.add_argument("--dataset", type=str, default="tiny")
+    parser.add_argument("--name", type=str, default="tiny")
+    parser.add_argument("--train_dataset", type=str, required=True)
+    parser.add_argument("--val_dataset", type=str, required=True)
     parser.add_argument("--vocab_size", type=int, default=10_000)
     parser.add_argument("--ctx_len", type=int, default=256)
     parser.add_argument("--d_model", type=int, default=512)
@@ -151,18 +153,9 @@ def main():
 
     print(f"Using device: {device}")
 
-    # train_data = torch.load(
-    #     f"data/tokenizer/{args.dataset}-tokens-train.pt",
-    #     mmap=True,
-    # )
-    # valid_data = torch.load(
-    #     f"data/tokenizer/{args.dataset}-tokens-valid.pt",
-    #     mmap=True,
-    # )
-
     train_data, valid_data = np.memmap(
-        "/data/owt-train.bin", dtype=np.uint16, mode="r"
-    ), np.memmap("/data/owt-valid.bin", dtype=np.uint16, mode="r")
+        args.train_dataset, dtype=np.uint16, mode="r"
+    ), np.memmap(args.val_dataset, dtype=np.uint16, mode="r")
 
     model = TransformerLM(
         vocab_size=args.vocab_size,
@@ -210,7 +203,7 @@ def main():
         context_length=args.ctx_len,
         num_steps=args.num_steps,
         num_val_batches=args.num_val_batches,
-        dataset=args.dataset,
+        name=args.name,
         resume=args.resume,
         lr=args.lr_max,
         val_every=args.val_every,

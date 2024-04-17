@@ -28,4 +28,6 @@ python3 train.py \
 	--train_batch_size 64 \
 	--val_batch_size 64 \
 	--num_steps 5000 \
-	--num_val_batches 1
+	--num_val_batches 1 \
+	--train_dataset "/data/TinyStoriesV2-GPT4-train.bin" \
+	--val_dataset "/data/TinyStoriesV2-GPT4-valid.bin"
