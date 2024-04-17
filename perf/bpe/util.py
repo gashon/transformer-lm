@@ -6,7 +6,7 @@ from memory_profiler import profile
 from models.tokenizer.tokenizer import Tokenizer
 
 
-# @profile
+@profile
 def profile_train_bpe(input_path, vocab_size, special_tokens, name):
     pr = cProfile.Profile()
     pr.enable()

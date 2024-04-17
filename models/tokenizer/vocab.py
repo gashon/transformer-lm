@@ -36,7 +36,6 @@ class Vocab:
     def get_inv(self) -> dict[bytes, int]:
         return {v: k for k, v in self.idx_to_token.items()}
 
-    @property
     def get_idx_to_token(self) -> dict[int, bytes]:
         return self.idx_to_token
 
