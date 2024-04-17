@@ -31,12 +31,15 @@ def train(
     num_val_batches,
     dataset,
     resume,
+    lr,
 ):
     best_val_loss = float("inf")
 
     if resume:
         current_step = load_checkpoint(
-            f"{checkpoint_dir}/{dataset}_best.pth", model, optimizer
+            f"{checkpoint_dir}/{dataset}_best_{lr}_{train_batch_size}.pth",
+            model,
+            optimizer,
         )
 
     def validate():
@@ -88,7 +91,7 @@ def train(
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 latest_checkpoint_path = os.path.join(
-                    checkpoint_dir, f"{dataset}_best.pth"
+                    checkpoint_dir, f"{dataset}_best_{lr}_{train_batch_size}.pth"
                 )
                 save_checkpoint(model, optimizer, num_steps, latest_checkpoint_path)
 
@@ -196,6 +199,7 @@ def main():
         num_val_batches=args.num_val_batches,
         dataset=args.dataset,
         resume=args.resume,
+        lr=args.lr_max,
     )
 
 
