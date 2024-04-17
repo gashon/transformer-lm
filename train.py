@@ -149,11 +149,13 @@ def main():
     print(f"Using device: {device}")
 
     train_data = torch.load(
-        f"data/tokenizer/{args.dataset}-tokens-train.pt",
+        # f"data/tokenizer/{args.dataset}-tokens-train.pt",
+        "/data/owt-train.bin",
         mmap=True,
     )
     valid_data = torch.load(
-        f"data/tokenizer/{args.dataset}-tokens-valid.pt",
+        "/data/owt-valid.bin",
+        # f"data/tokenizer/{args.dataset}-tokens-valid.pt",
         mmap=True,
     )
 
