@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=profile_bpe_tiny
-#SBATCH --partition=batch
+#SBATCH --partition=batch-cpu
 #SBATCH --ntasks=1
 #SBATCH --mem-per-cpu=45G
 #SBATCH --time=1:05:00
