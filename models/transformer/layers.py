@@ -14,6 +14,7 @@ class TransformerBlock(nn.Module):
         attn_pdrop=None,
         residual_pdrop=None,
         post_norm=False,
+        layer_norm=True,
     ):
         super(TransformerBlock, self).__init__()
         self.ln1 = RMSNorm(d_model, eps=1e-5)
@@ -24,6 +25,9 @@ class TransformerBlock(nn.Module):
             if residual_pdrop is not None
             else nn.Identity()
         )
+        if not layer_norm:
+            self.ln1 = nn.Identity()
+            self.ln2 = nn.Identity()
         self.ffn = PositionWiseFeedForward(d_model, d_ff)
         self.post_norm = post_norm
 
