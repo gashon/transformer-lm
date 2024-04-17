@@ -15,6 +15,7 @@ class TransformerBlock(nn.Module):
         residual_pdrop=None,
         post_norm=False,
         layer_norm=True,
+        parallel=False,
     ):
         super(TransformerBlock, self).__init__()
         self.ln1 = RMSNorm(d_model, eps=1e-5)
@@ -30,6 +31,7 @@ class TransformerBlock(nn.Module):
             self.ln2 = nn.Identity()
         self.ffn = PositionWiseFeedForward(d_model, d_ff)
         self.post_norm = post_norm
+        self.parallel = parallel
 
     def prenorm_forward(self, x):
         y = x + self.dropout(self.attn(self.ln1(x)))
@@ -39,9 +41,20 @@ class TransformerBlock(nn.Module):
         y = self.ln1(x + self.dropout(self.attn(x)))
         return self.ln2(y + self.dropout(self.ffn(y)))
 
+    def parallel_forward(self, x):
+        y1, y2 = self.norm1(x), self.norm2(x)
+        y1 = self.dropout(self.attn(y1))
+        y2 = self.dropout(self.ffn(y2))
+
+        return x + y1 + y2
+
     def forward(self, x):
+        if self.parallel:
+            return self.parallel_forward(x)
+
         if self.post_norm:
             return self.postnorm_forward(x)
+
         return self.prenorm_forward(x)
 
 

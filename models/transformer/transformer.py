@@ -18,6 +18,7 @@ class TransformerLM(nn.Module):
         residual_pdrop: float | None = None,
         post_norm: bool = False,
         layer_norm: bool = True,
+        parallel: bool = False,
     ):
         super(TransformerLM, self).__init__()
         self.vocab_size = vocab_size

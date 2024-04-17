@@ -141,6 +141,7 @@ def main():
     parser.add_argument("--layer_norm", action="store_true", default=True)
     parser.add_argument("--no_layer_norm", action="store_false", dest="layer_norm")
     parser.add_argument("--val_every", type=int, default=400)
+    parser.add_argument("--parallel", action="store_true", default=False)
 
     args = parser.parse_args()
 
