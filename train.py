@@ -93,7 +93,7 @@ def train(
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 latest_checkpoint_path = os.path.join(
-                    checkpoint_dir, f"{}_best_{lr}_{train_batch_size}.pth"
+                    checkpoint_dir, f"{name}_best_{lr}_{train_batch_size}.pth"
                 )
                 save_checkpoint(model, optimizer, num_steps, latest_checkpoint_path)
 
