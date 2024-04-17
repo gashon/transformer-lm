@@ -138,9 +138,19 @@ class Tokenizer:
         return ids
 
     def encode_iterable(self, iterable: Iterable[str]) -> Iterator[int]:
-        for text in iterable:
-            for id in self.encode(text):
-                yield id
+        while True:
+            text = ""
+            for line in iterable:
+                text += line
+                if len(text) >= 1024 * 1024 * 2:
+                    break
+            if not text:
+                break
+
+            yield from self.encode(text)
+        # for text in iterable:
+        #     for id in self.encode(text):
+        #         yield id
 
     def decode(self, ids: List[int]) -> str:
         raw_bytes = b"".join([self.vocab[i] for i in ids])
