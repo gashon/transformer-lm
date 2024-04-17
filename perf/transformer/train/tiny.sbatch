@@ -12,21 +12,20 @@ source $(conda info --base)/etc/profile.d/conda.sh
 conda activate transformer_lm
 
 python3 train.py \
-  --dataset "tiny" \
-  --vocab_size 10000 \
-  --ctx_len 256 \
-  --d_model 512 \
-  --num_layers 4 \
-  --num_heads 16 \
-  --d_ff 2048 \
-  --attn_pdrop 0.1 \
-  --residual_pdrop 0.1 \
-  --lr_max 0.001 \
-  --lr_min 0.00001 \
-  --t_warmup 500 \
-  --t_cos 10000 \
-  --train_batch_size 256 \
-  --val_batch_size 256 \
-  --num_steps 5000 \
-  --num_val_batches 1
-
+	--dataset "tiny" \
+	--vocab_size 10000 \
+	--ctx_len 256 \
+	--d_model 512 \
+	--num_layers 4 \
+	--num_heads 16 \
+	--d_ff 2048 \
+	--attn_pdrop 0.1 \
+	--residual_pdrop 0.1 \
+	--lr_max 0.001 \
+	--lr_min 0.00001 \
+	--t_warmup 500 \
+	--t_cos 10000 \
+	--train_batch_size 64 \
+	--val_batch_size 64 \
+	--num_steps 5000 \
+	--num_val_batches 1
