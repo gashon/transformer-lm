@@ -133,9 +133,9 @@ def main():
     parser.add_argument("--train_batch_size", type=int, default=128)
     parser.add_argument("--val_batch_size", type=int, default=128)
     parser.add_argument("--num_val_batches", type=int, default=2)
-	parser.add_argument("--post_norm", type=bool, default=False)
+    parser.add_argument("--post_norm", type=bool, default=False)
     parser.add_argument("--layer_norm", type=bool, default=True)
-    
+
     args = parser.parse_args()
 
     run_name = f"lr{args.lr_max}-bs{args.train_batch_size}"
