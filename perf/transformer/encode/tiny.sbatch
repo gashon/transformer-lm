@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=encode_tiny
-#SBATCH --partition=batch
+#SBATCH --partition=batch-cpu
 #SBATCH --ntasks=1
 #SBATCH --mem-per-cpu=90G
 #SBATCH --time=1:05:00

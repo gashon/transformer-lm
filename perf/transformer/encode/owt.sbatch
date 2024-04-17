@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=encode_owt
-#SBATCH --partition=batch
+#SBATCH --partition=batch-cpu
 #SBATCH --ntasks=1
 #SBATCH --mem-per-cpu=100G
 #SBATCH --time=5:05:00
