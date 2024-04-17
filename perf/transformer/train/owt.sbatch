@@ -15,7 +15,7 @@ python3 train.py \
 	--dataset "owt" \
 	--vocab_size 32000 \
 	--ctx_len 512 \
-	--d_model 1028 \
+	--d_model 1024 \
 	--num_layers 8 \
 	--num_heads 32 \
 	--d_ff 4096 \
