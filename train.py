@@ -148,16 +148,18 @@ def main():
 
     print(f"Using device: {device}")
 
-    train_data = torch.load(
-        # f"data/tokenizer/{args.dataset}-tokens-train.pt",
-        "/data/owt-train.bin",
-        mmap=True,
-    )
-    valid_data = torch.load(
-        "/data/owt-valid.bin",
-        # f"data/tokenizer/{args.dataset}-tokens-valid.pt",
-        mmap=True,
-    )
+    # train_data = torch.load(
+    #     f"data/tokenizer/{args.dataset}-tokens-train.pt",
+    #     mmap=True,
+    # )
+    # valid_data = torch.load(
+    #     f"data/tokenizer/{args.dataset}-tokens-valid.pt",
+    #     mmap=True,
+    # )
+
+    train_data, valid_data = np.memmap(
+        "/data/owt-train.bin", dtype=np.uint16, mode="r"
+    ), np.memmap("/data/owt-valid.bin", dtype=np.uint16, mode="r")
 
     model = TransformerLM(
         vocab_size=args.vocab_size,
