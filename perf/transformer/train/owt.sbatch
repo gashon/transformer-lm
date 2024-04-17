@@ -12,7 +12,7 @@ source $(conda info --base)/etc/profile.d/conda.sh
 conda activate transformer_lm
 
 python3 train.py \
-	--dataset "owt" \
+	--name "owt" \
 	--vocab_size 32000 \
 	--ctx_len 512 \
 	--d_model 1024 \

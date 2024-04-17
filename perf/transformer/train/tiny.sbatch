@@ -12,7 +12,7 @@ source $(conda info --base)/etc/profile.d/conda.sh
 conda activate transformer_lm
 
 python3 train.py \
-	--dataset "tiny" \
+	--name "tiny" \
 	--vocab_size 10000 \
 	--ctx_len 256 \
 	--d_model 512 \
