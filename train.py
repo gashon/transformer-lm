@@ -134,7 +134,8 @@ def main():
     parser.add_argument("--val_batch_size", type=int, default=128)
     parser.add_argument("--num_val_batches", type=int, default=2)
     parser.add_argument("--post_norm", type=bool, default=False)
-    parser.add_argument("--layer_norm", type=bool, default=True)
+    parser.add_argument("--layer_norm", action="store_true", default=True)
+    parser.add_argument("--no_layer_norm", action="store_false", dest="layer_norm")
 
     args = parser.parse_args()
 
