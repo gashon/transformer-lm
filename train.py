@@ -21,7 +21,6 @@ def train(
     train_dataloader,
     valid_dataloader,
     optimizer,
-    scheduler,
     clip_norm,
     device,
     checkpoint_dir,
@@ -76,7 +75,6 @@ def train(
 
         clip_gradients(model.parameters(), clip_norm)
         optimizer.step()
-        scheduler.step()
 
         total_train_loss += loss.item()
 
@@ -188,7 +186,6 @@ def main():
         train_dataloader=train_data,
         valid_dataloader=valid_data,
         optimizer=optimizer,
-        scheduler=scheduler,
         clip_norm=1.0,
         device=device,
         checkpoint_dir=checkpoint_dir,
