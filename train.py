@@ -3,6 +3,7 @@ import torch
 from tqdm import tqdm
 import os
 import wandb
+import numpy as np
 
 from models.tokenizer.tokenizer import Tokenizer
 from models.transformer.transformer import TransformerLM
