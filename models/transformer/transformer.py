@@ -34,7 +34,13 @@ class TransformerLM(nn.Module):
         self.layers = nn.ModuleList(
             [
                 TransformerBlock(
-                    d_model, num_heads, d_ff, attn_pdrop, residual_pdrop, post_norm
+                    d_model,
+                    num_heads,
+                    d_ff,
+                    attn_pdrop,
+                    residual_pdrop,
+                    post_norm,
+                    layer_norm,
                 )
                 for _ in range(num_layers)
             ]
