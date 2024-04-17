@@ -133,6 +133,8 @@ def main():
     parser.add_argument("--train_batch_size", type=int, default=128)
     parser.add_argument("--val_batch_size", type=int, default=128)
     parser.add_argument("--num_val_batches", type=int, default=2)
+	parser.add_argument("--post_norm", action="store_true", dest="pre_norm",
+						help="Post-normalization")
     args = parser.parse_args()
 
     run_name = f"lr{args.lr_max}-bs{args.train_batch_size}"
@@ -162,6 +164,7 @@ def main():
         d_ff=args.d_ff,
         attn_pdrop=args.attn_pdrop,
         residual_pdrop=args.residual_pdrop,
+        post_norm=args.post_norm,
     ).to(device)
 
     optimizer = AdamW(

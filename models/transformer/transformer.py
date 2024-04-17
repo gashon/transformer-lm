@@ -16,6 +16,7 @@ class TransformerLM(nn.Module):
         d_ff: int,
         attn_pdrop: float | None = None,
         residual_pdrop: float | None = None,
+        post_norm: bool = False,
     ):
         super(TransformerLM, self).__init__()
         self.vocab_size = vocab_size
@@ -31,7 +32,9 @@ class TransformerLM(nn.Module):
         # Transformer blocks
         self.layers = nn.ModuleList(
             [
-                TransformerBlock(d_model, num_heads, d_ff, attn_pdrop, residual_pdrop)
+                TransformerBlock(
+                    d_model, num_heads, d_ff, attn_pdrop, residual_pdrop, post_norm
+                )
                 for _ in range(num_layers)
             ]
         )
