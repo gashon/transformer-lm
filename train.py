@@ -33,6 +33,7 @@ def train(
     dataset,
     resume,
     lr,
+    val_every,
 ):
     best_val_loss = float("inf")
 
@@ -86,7 +87,7 @@ def train(
             average_train_loss = total_train_loss / (current_step + 1)
             wandb.log({"average_train_loss": average_train_loss})
 
-        if current_step % 400 == 0:
+        if current_step % val_every == 0:
             val_loss, val_perpl = validate()
             print(f"Validation Loss: {val_loss:.4f}, Perplexity: {val_perpl:.4f}")
             if val_loss < best_val_loss:
@@ -137,6 +138,7 @@ def main():
     parser.add_argument("--post_norm", type=bool, default=False)
     parser.add_argument("--layer_norm", action="store_true", default=True)
     parser.add_argument("--no_layer_norm", action="store_false", dest="layer_norm")
+    parser.add_argument("--val_every", type=int, default=400)
 
     args = parser.parse_args()
 
@@ -211,6 +213,7 @@ def main():
         dataset=args.dataset,
         resume=args.resume,
         lr=args.lr_max,
+        val_every=args.val_every,
     )
 
 
