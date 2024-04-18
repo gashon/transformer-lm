@@ -374,6 +374,7 @@ def run_rmsnorm(
     from models.transformer.layers import RMSNorm
 
     n = RMSNorm(d_model, eps, weights["weight"])
+    n.load_state_dict(weights)
     return n(in_features)
 
 
