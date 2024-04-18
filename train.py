@@ -16,115 +16,152 @@ from models.transformer.util import (
 from models.util import save_checkpoint, load_checkpoint, load_batch
 
 
-def train(
-    model,
-    train_dataloader,
-    valid_dataloader,
-    optimizer,
-    clip_norm,
-    device,
-    checkpoint_dir,
-    train_batch_size,
-    val_batch_size,
-    context_length,
-    num_steps,
-    num_val_batches,
-    name,
-    resume,
-    lr,
-    lr_min,
-    val_every,
-    use_scheduler,
-    t_warmup,
-):
-    best_val_loss = float("inf")
+class Trainer:
+    def __init__(
+        self,
+        model,
+        train_dataloader,
+        valid_dataloader,
+        optimizer,
+        clip_norm,
+        device,
+        checkpoint_dir,
+        train_batch_size,
+        val_batch_size,
+        context_length,
+        num_steps,
+        num_val_batches,
+        name,
+        resume,
+        lr,
+        lr_min,
+        val_every,
+        use_scheduler,
+        t_warmup,
+    ):
+        self.model = model
+        self.train_dataloader = train_dataloader
+        self.valid_dataloader = valid_dataloader
+        self.optimizer = optimizer
+        self.clip_norm = clip_norm
+        self.device = device
+        self.checkpoint_dir = checkpoint_dir
+        self.train_batch_size = train_batch_size
+        self.val_batch_size = val_batch_size
+        self.context_length = context_length
+        self.num_steps = num_steps
+        self.num_val_batches = num_val_batches
+        self.name = name
+        self.resume = resume
+        self.lr = lr
+        self.lr_min = lr_min
+        self.val_every = val_every
+        self.use_scheduler = use_scheduler
+        self.t_warmup = t_warmup
+        self.scheduler = None
+        self.best_val_loss = float("inf")
 
-    current_step = 0
-    if resume:
-        current_step = load_checkpoint(
-            f"{checkpoint_dir}/{name}_best_{lr}_{train_batch_size}.pth",
-            model,
-            optimizer,
-        )
+        if self.use_scheduler:
+            self.scheduler = torch.optim.lr_scheduler.LambdaLR(
+                self.optimizer,
+                lr_lambda=lambda step: cosine_learning_rate_schedule(
+                    step,
+                    self.lr,
+                    self.lr_min,
+                    self.t_warmup,
+                    self.num_steps,
+                ),
+            )
 
-    if use_scheduler:
-        scheduler = torch.optim.lr_scheduler.LambdaLR(
-            optimizer,
-            lr_lambda=lambda step: cosine_learning_rate_schedule(
-                step,
-                lr,
-                lr_min,
-                t_warmup,
-                num_steps,
-            ),
-        )
-
-    def validate():
-        model.eval()
+    def validate(self):
+        self.model.eval()
         total_valid_loss = 0
         total_perpl = 0
         with torch.no_grad():
-            for _ in tqdm(range(num_val_batches), desc="Validation"):
+            for _ in tqdm(range(self.num_val_batches), desc="Validation"):
                 inputs, targets = load_batch(
-                    valid_dataloader, val_batch_size, context_length, device
+                    self.valid_dataloader,
+                    self.val_batch_size,
+                    self.context_length,
+                    self.device,
                 )
-                inputs, targets = inputs.to(device), targets.to(device)
-                logits = model(inputs)
+                inputs, targets = inputs.to(self.device), targets.to(self.device)
+                logits = self.model(inputs)
                 valid_loss = cross_entropy_loss(logits, targets)
                 total_perpl += perplexity(logits, targets)
                 total_valid_loss += valid_loss.item()
 
-            if use_scheduler:
-                scheduler.step()
+            average_valid_loss = total_valid_loss / self.num_val_batches
+            average_perpl = total_perpl / self.num_val_batches
+            wandb.log(
+                {
+                    "average_valid_loss": average_valid_loss,
+                    "average_perpl": average_perpl,
+                }
+            )
+            return average_valid_loss, average_perpl
 
-        average_valid_loss = total_valid_loss / num_val_batches
-        average_perpl = total_perpl / num_val_batches
-        wandb.log(
-            {"average_valid_loss": average_valid_loss, "average_perpl": average_perpl}
-        )
-        return average_valid_loss, average_perpl
+    def train(self):
+        current_step = 0
+        if self.resume:
+            current_step = load_checkpoint(
+                f"{self.checkpoint_dir}/{self.name}_best_{self.lr}_{self.train_batch_size}.pth",
+                self.model,
+                self.optimizer,
+            )
 
-    total_train_loss = 0
-    for current_step in tqdm(
-        range(current_step, num_steps), desc=f"Training Step {num_steps+1}"
-    ):
-        inputs, targets = load_batch(
-            train_dataloader, train_batch_size, context_length, device
-        )
-        inputs, targets = inputs.to(device), targets.to(device)
-        optimizer.zero_grad()
+        total_train_loss = 0
+        for current_step in tqdm(
+            range(current_step, self.num_steps),
+            desc=f"Training Step {self.num_steps+1}",
+        ):
+            inputs, targets = load_batch(
+                self.train_dataloader,
+                self.train_batch_size,
+                self.context_length,
+                self.device,
+            )
+            inputs, targets = inputs.to(self.device), targets.to(self.device)
+            self.optimizer.zero_grad()
 
-        logits = model(inputs)
-        loss = cross_entropy_loss(logits, targets)
-        loss.backward()
+            logits = self.model(inputs)
+            loss = cross_entropy_loss(logits, targets)
+            loss.backward()
 
-        clip_gradients(model.parameters(), clip_norm)
-        optimizer.step()
+            clip_gradients(self.model.parameters(), self.clip_norm)
+            self.optimizer.step()
 
-        total_train_loss += loss.item()
+            total_train_loss += loss.item()
 
-        if current_step % 100 == 0:
-            average_train_loss = total_train_loss / (current_step + 1)
-            wandb.log({"average_train_loss": average_train_loss})
+            if current_step % 100 == 0:
+                average_train_loss = total_train_loss / (current_step + 1)
+                wandb.log({"average_train_loss": average_train_loss})
 
-        if current_step % val_every == 0:
-            val_loss, val_perpl = validate()
-            print(f"Validation Loss: {val_loss:.4f}, Perplexity: {val_perpl:.4f}")
-            if val_loss < best_val_loss:
-                best_val_loss = val_loss
-                latest_checkpoint_path = os.path.join(
-                    checkpoint_dir, f"{name}_best_{lr}_{train_batch_size}.pth"
-                )
-                save_checkpoint(model, optimizer, num_steps, latest_checkpoint_path)
+            if current_step % self.val_every == 0:
+                val_loss, val_perpl = self.validate()
+                print(f"Validation Loss: {val_loss:.4f}, Perplexity: {val_perpl:.4f}")
+                if val_loss < self.best_val_loss:
+                    self.best_val_loss = val_loss
+                    latest_checkpoint_path = os.path.join(
+                        self.checkpoint_dir,
+                        f"{self.name}_best_{self.lr}_{self.train_batch_size}.pth",
+                    )
+                    save_checkpoint(
+                        self.model,
+                        self.optimizer,
+                        self.num_steps,
+                        latest_checkpoint_path,
+                    )
 
-    average_train_loss = total_train_loss / num_steps
-    print(f"Training Loss: {average_train_loss:.4f}")
-    wandb.log({"average_train_loss": average_train_loss})
+        average_train_loss = total_train_loss / self.num_steps
+        print(f"Training Loss: {average_train_loss:.4f}")
+        wandb.log({"average_train_loss": average_train_loss})
 
 
 def main():
     torch.manual_seed(42)
 
+    # Set up argument parser
     parser = argparse.ArgumentParser(
         description="Train a Transformer model with custom hyperparameters and utilities."
     )
@@ -158,27 +195,31 @@ def main():
     parser.add_argument("--val_batch_size", type=int, default=128)
     parser.add_argument("--num_val_batches", type=int, default=2)
     parser.add_argument("--post_norm", type=bool, default=False)
-    parser.add_argument("--layer_norm", action="store_true", default=True)
+    parser.add_argument("--layer_norm", action="store_true")
     parser.add_argument("--no_layer_norm", action="store_false", dest="layer_norm")
     parser.add_argument("--val_every", type=int, default=400)
-    parser.add_argument("--parallel", action="store_true", default=False)
-    parser.add_argument("--use_scheduler", action="store_true", default=False)
+    parser.add_argument("--parallel", action="store_true")
+    parser.add_argument("--use_scheduler", action="store_true")
 
+    # Parse arguments
     args = parser.parse_args()
 
+    # Initialize WandB
     run_name = f"lr{args.lr_max}-bs{args.train_batch_size}"
     wandb.init(
         project="transformer from scratch", entity="gashon", config=args, name=run_name
     )
 
+    # Device setup
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
     print(f"Using device: {device}")
 
+    # Data loading
     train_data, valid_data = np.memmap(
         args.train_dataset, dtype=np.uint16, mode="r"
     ), np.memmap(args.val_dataset, dtype=np.uint16, mode="r")
 
+    # Model initialization
     model = TransformerLM(
         vocab_size=args.vocab_size,
         context_length=args.ctx_len,
@@ -192,6 +233,7 @@ def main():
         layer_norm=args.layer_norm,
     ).to(device)
 
+    # Optimizer setup
     optimizer = AdamW(
         model.parameters(),
         lr=args.lr_max,
@@ -199,10 +241,12 @@ def main():
         weight_decay=args.weight_decay,
     )
 
+    # Checkpoint directory
     checkpoint_dir = "./checkpoints"
-    os.makedirs(f"{checkpoint_dir}/dataset", exist_ok=True)
+    os.makedirs(checkpoint_dir, exist_ok=True)
 
-    train(
+    # Trainer initialization and training
+    trainer = Trainer(
         model=model,
         train_dataloader=train_data,
         valid_dataloader=valid_data,
@@ -224,9 +268,8 @@ def main():
         t_warmup=args.t_warmup,
     )
 
+    trainer.train()
+
 
 if __name__ == "__main__":
     main()
-
-# sample
-# python3 train.py --dataset "corpus" --vocab_size 2000 --ctx_len 128 --d_model 128 --num_layers 2 --num_heads 4 --d_ff 512 --attn_pdrop 0.05 --residual_pdrop 0.05 --lr_max 0.005 --lr_min 0.0001 --t_warmup 10 --t_cos 200 --train_batch_size 16 --val_batch_size 16 --num_steps 20 --num_val_batches 5
