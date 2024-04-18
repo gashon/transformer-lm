@@ -23,9 +23,9 @@ def read_requirements(path):
 
 
 setup(
-    name="cs336_basics",
-    version=read("cs336_basics", "VERSION"),
-    description="CS336: basics",
+    name="transformer",
+    version=read("transformer", "VERSION"),
+    description="transformer: basics",
     long_description=read("README.md"),
     long_description_content_type="text/markdown",
     packages=find_packages(exclude=["tests", ".github"]),
