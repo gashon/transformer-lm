@@ -5,7 +5,6 @@ import os
 import wandb
 import numpy as np
 
-from models.tokenizer.tokenizer import Tokenizer
 from models.transformer.transformer import TransformerLM
 from models.transformer.util import (
     AdamW,
@@ -33,15 +32,31 @@ def train(
     name,
     resume,
     lr,
+    lr_min,
     val_every,
+    use_scheduler,
+    t_warmup,
 ):
     best_val_loss = float("inf")
 
+    current_step = 0
     if resume:
         current_step = load_checkpoint(
             f"{checkpoint_dir}/{name}_best_{lr}_{train_batch_size}.pth",
             model,
             optimizer,
+        )
+
+    if use_scheduler:
+        scheduler = torch.optim.lr_scheduler.LambdaLR(
+            optimizer,
+            lr_lambda=lambda step: cosine_learning_rate_schedule(
+                step,
+                lr,
+                lr_min,
+                t_warmup,
+                num_steps,
+            ),
         )
 
     def validate():
@@ -59,6 +74,9 @@ def train(
                 total_perpl += perplexity(logits, targets)
                 total_valid_loss += valid_loss.item()
 
+            if use_scheduler:
+                scheduler.step()
+
         average_valid_loss = total_valid_loss / num_val_batches
         average_perpl = total_perpl / num_val_batches
         wandb.log(
@@ -67,7 +85,9 @@ def train(
         return average_valid_loss, average_perpl
 
     total_train_loss = 0
-    for current_step in tqdm(range(num_steps), desc=f"Training Step {num_steps+1}"):
+    for current_step in tqdm(
+        range(current_step, num_steps), desc=f"Training Step {num_steps+1}"
+    ):
         inputs, targets = load_batch(
             train_dataloader, train_batch_size, context_length, device
         )
@@ -99,7 +119,7 @@ def train(
 
     average_train_loss = total_train_loss / num_steps
     print(f"Training Loss: {average_train_loss:.4f}")
-    wandb.log({"average_train_loss": average_train_loss})  # Log average training loss
+    wandb.log({"average_train_loss": average_train_loss})
 
 
 def main():
@@ -142,6 +162,7 @@ def main():
     parser.add_argument("--no_layer_norm", action="store_false", dest="layer_norm")
     parser.add_argument("--val_every", type=int, default=400)
     parser.add_argument("--parallel", action="store_true", default=False)
+    parser.add_argument("--use_scheduler", action="store_true", default=False)
 
     args = parser.parse_args()
 
@@ -177,16 +198,6 @@ def main():
         betas=(args.beta1, args.beta2),
         weight_decay=args.weight_decay,
     )
-    # scheduler = torch.optim.lr_scheduler.LambdaLR(
-    #     optimizer,
-    #     lr_lambda=lambda step: cosine_learning_rate_schedule(
-    #         step,
-    #         args.lr_max,
-    #         args.lr_min,
-    #         args.t_warmup,
-    #         args.num_steps,
-    #     ),
-    # )
 
     checkpoint_dir = "./checkpoints"
     os.makedirs(f"{checkpoint_dir}/dataset", exist_ok=True)
@@ -207,7 +218,10 @@ def main():
         name=args.name,
         resume=args.resume,
         lr=args.lr_max,
+        lr_min=args.lr_min,
         val_every=args.val_every,
+        use_scheduler=args.use_scheduler,
+        t_warmup=args.t_warmup,
     )
 
 
