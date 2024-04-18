@@ -1,6 +1,0 @@
-
-1. Run the encoding script on both datasets.
-2. Train model
-3. Generate decodings
-
-
