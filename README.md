@@ -30,9 +30,9 @@ sbatch perf/bpe/owt.sbatch
 
 ### Example generation
 
-TinyStoriesV1 dataset on 3 H100 hrs \\
+TinyStoriesV1 dataset on 3 H100 hrs 
 
-`Prompt: "Once upon a time,"` \\
+`Prompt: "Once upon a time,"` 
 
 ```
 "Once upon a time, there was a little girl named Lily. She had a big, round ball that she loved to play with. One day, Lily saw a big, round ball in the park. She wanted to play with it, but she was too small to reach it.
