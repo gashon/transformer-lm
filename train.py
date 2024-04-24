@@ -4,6 +4,7 @@ from tqdm import tqdm
 import os
 import wandb
 import numpy as np
+import logging
 
 from models.transformer.transformer import TransformerLM
 from models.transformer.util import (
@@ -14,6 +15,12 @@ from models.transformer.util import (
     perplexity,
 )
 from models.util import save_checkpoint, load_checkpoint, load_batch
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s (%(levelname)s): %(message)s"
+)
+
+logger = logging.getLogger(__name__)
 
 
 class Trainer:
@@ -131,6 +138,9 @@ class Trainer:
             clip_gradients(self.model.parameters(), self.clip_norm)
             self.optimizer.step()
 
+            if self.use_scheduler and self.scheduler is not None:
+                self.scheduler.step()
+
             total_train_loss += loss.item()
 
             if current_step % 100 == 0:
@@ -139,7 +149,9 @@ class Trainer:
 
             if current_step % self.val_every == 0:
                 val_loss, val_perpl = self.validate()
-                print(f"Validation Loss: {val_loss:.4f}, Perplexity: {val_perpl:.4f}")
+                logger.info(
+                    f"Validation Loss: {val_loss:.4f}, Perplexity: {val_perpl:.4f}"
+                )
                 if val_loss < self.best_val_loss:
                     self.best_val_loss = val_loss
                     latest_checkpoint_path = os.path.join(
@@ -154,7 +166,7 @@ class Trainer:
                     )
 
         average_train_loss = total_train_loss / self.num_steps
-        print(f"Training Loss: {average_train_loss:.4f}")
+        logger.info(f"Training Loss: {average_train_loss:.4f}")
         wandb.log({"average_train_loss": average_train_loss})
 
 
@@ -212,7 +224,7 @@ def main():
 
     # Device setup
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
+    logger.info(f"Using device: {device}")
 
     # Data loading
     train_data, valid_data = np.memmap(

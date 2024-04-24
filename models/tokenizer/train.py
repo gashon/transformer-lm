@@ -7,6 +7,11 @@ import logging
 
 from models.tokenizer.vocab import Vocab
 
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s (%(levelname)s): %(message)s"
+)
+logger = logging.getLogger(__name__)
+
 
 def extract_subword_frequencies(
     input_path: str, special_tokens: Set[str], pattern: re.Pattern
@@ -135,11 +140,6 @@ def merge_subwords(
 
 
 def train_bpe(input_path: str, vocab_size: int, special_tokens: List[str] = []):
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s (%(levelname)s): %(message)s"
-    )
-    logger = logging.getLogger("tokenizer")
-
     pattern = re.compile(
         r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""",
         re.UNICODE,
